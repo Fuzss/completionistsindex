@@ -1,6 +1,9 @@
 package fuzs.completionistsindex.client.gui.screens.inventory;
 
+import com.google.common.collect.ImmutableList;
 import com.google.common.collect.ImmutableMap;
+import com.google.common.collect.Lists;
+import com.google.common.collect.Maps;
 import com.mojang.blaze3d.vertex.PoseStack;
 import fuzs.completionistsindex.CompletionistsIndex;
 import fuzs.completionistsindex.config.ClientConfig;
@@ -15,7 +18,6 @@ import net.minecraft.stats.StatsCounter;
 import net.minecraft.world.item.CreativeModeTab;
 import net.minecraft.world.item.ItemStack;
 
-import java.util.LinkedHashMap;
 import java.util.List;
 import java.util.Map;
 import java.util.function.Predicate;
@@ -23,6 +25,7 @@ import java.util.stream.Collectors;
 
 public class ModsIndexViewScreen extends IndexViewScreen implements StatsUpdateListener {
     private static final Component PENDING_TEXT = Component.translatable("multiplayer.downloadingStats");
+    public static final String ALL_ITEMS_KEY = "__ALL__";
 
     private final Map<String, List<ItemStack>> allItemsByMod = getAllItemsByMod();
     private boolean isLoading = true;
@@ -35,12 +38,19 @@ public class ModsIndexViewScreen extends IndexViewScreen implements StatsUpdateL
         NonNullList<ItemStack> searchTabItems = NonNullList.create();
         CreativeModeTab.TAB_SEARCH.fillItemList(searchTabItems);
         // use linked hash map to maybe preserve mod order
-        Map<String, List<ItemStack>> allItems = searchTabItems.stream()
+        List<ItemStack> allItems = searchTabItems.stream()
                 .map(ItemStack::getItem)
                 .distinct()
                 .filter(Predicate.not(CompletionistsIndex.CONFIG.get(ClientConfig.class).blacklist::contains))
-                .collect(Collectors.groupingBy(item -> Registry.ITEM.getKey(item).getNamespace(), LinkedHashMap::new, Collectors.mapping(ItemStack::new, Collectors.toList())));
-        return ImmutableMap.copyOf(allItems);
+                .map(ItemStack::new)
+                .collect(Collectors.toList());
+        Map<String, List<ItemStack>> allItemsByMod = Maps.newLinkedHashMap();
+        allItemsByMod.put(ALL_ITEMS_KEY, allItems);
+        for (ItemStack item : allItems) {
+            allItemsByMod.computeIfAbsent(Registry.ITEM.getKey(item.getItem()).getNamespace(), modId -> Lists.newArrayList()).add(item);
+        }
+        if (allItemsByMod.size() == 2) allItemsByMod.remove(ALL_ITEMS_KEY);
+        return allItemsByMod.entrySet().stream().collect(ImmutableMap.toImmutableMap(Map.Entry::getKey, e -> ImmutableList.copyOf(e.getValue())));
     }
 
     @Override

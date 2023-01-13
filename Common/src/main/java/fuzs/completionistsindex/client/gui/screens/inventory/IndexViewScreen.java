@@ -26,7 +26,6 @@ import net.minecraft.resources.ResourceLocation;
 import net.minecraft.sounds.SoundEvents;
 import net.minecraft.stats.Stats;
 import net.minecraft.stats.StatsCounter;
-import net.minecraft.util.FormattedCharSequence;
 import net.minecraft.world.item.ItemStack;
 import org.jetbrains.annotations.Nullable;
 
@@ -230,7 +229,12 @@ public abstract class IndexViewScreen extends Screen {
 
       public static Entry modItemEntry(String modId, List<ItemStack> items, StatsCounter statsCounter, Font font) {
          if (items.isEmpty()) throw new IllegalArgumentException("items cannot be empty");
-         Component modName = Component.literal(ModLoaderEnvironment.INSTANCE.getModName(modId).orElseThrow());
+         Component modName;
+         if (modId.equals(ModsIndexViewScreen.ALL_ITEMS_KEY)) {
+            modName = Component.translatable("gui.all");
+         } else {
+            modName = Component.literal(ModLoaderEnvironment.INSTANCE.getModName(modId).orElseThrow());
+         }
          ItemStack displayItem = items.stream().skip((long) (Math.random() * items.size())).findFirst().orElseThrow();
          long collectedCount = items.stream().filter(stack -> {
             int pickedUp = statsCounter.getValue(Stats.ITEM_PICKED_UP, stack.getItem());
@@ -248,7 +252,7 @@ public abstract class IndexViewScreen extends Screen {
          int crafted = statsCounter.getValue(Stats.ITEM_CRAFTED, stack.getItem());
          boolean collected = pickedUp > 0 || crafted > 0;
          Component displayName = stack.getItem().getName(stack);
-         FormattedCharSequence formattedName = formatDisplayName(font, displayName, collected);
+         FormattedText formattedName = formatDisplayName(font, displayName, collected);
          ImmutableList.Builder<Component> builder = ImmutableList.builder();
          builder.add(Component.empty().append(stack.getItem().getName(stack)).withStyle(stack.getRarity().color));
          if (pickedUp > 0) {
@@ -260,7 +264,7 @@ public abstract class IndexViewScreen extends Screen {
          return new StatsItemEntry(stack, formattedName, collected, builder.build());
       }
 
-      private static FormattedCharSequence formatDisplayName(Font font, Component displayName, boolean collected) {
+      private static FormattedText formatDisplayName(Font font, Component displayName, boolean collected) {
          Style style = Style.EMPTY.withColor(collected ? 0x4BA52F : ChatFormatting.BLACK.getColor());
          FormattedText formattedText;
          if (font.width(displayName) > 95) {
@@ -268,16 +272,16 @@ public abstract class IndexViewScreen extends Screen {
          } else {
             formattedText = Component.empty().append(displayName).withStyle(style);
          }
-         return Language.getInstance().getVisualOrder(formattedText);
+         return formattedText;
       }
 
       public static abstract class Entry {
          final ItemStack item;
-         final FormattedCharSequence displayName;
+         final FormattedText displayName;
          private final boolean collected;
          private final List<Component> tooltipLines;
 
-         private Entry(ItemStack item, FormattedCharSequence displayName, boolean collected, List<Component> tooltipLines) {
+         private Entry(ItemStack item, FormattedText displayName, boolean collected, List<Component> tooltipLines) {
             this.item = item;
             this.displayName = displayName;
             this.collected = collected;
@@ -334,7 +338,7 @@ public abstract class IndexViewScreen extends Screen {
 
       private static class StatsItemEntry extends Entry {
 
-         public StatsItemEntry(ItemStack item, FormattedCharSequence displayName, boolean collected, List<Component> tooltipLines) {
+         public StatsItemEntry(ItemStack item, FormattedText displayName, boolean collected, List<Component> tooltipLines) {
             super(item, displayName, collected, tooltipLines);
          }
 
@@ -347,7 +351,7 @@ public abstract class IndexViewScreen extends Screen {
          @Override
          public void renderForeground(Minecraft minecraft, PoseStack poseStack, int mouseX, int mouseY, float partialTick) {
             super.renderForeground(minecraft, poseStack, mouseX, mouseY, partialTick);
-            minecraft.font.draw(poseStack, this.displayName, 23, 5, 0x000000);
+            minecraft.font.draw(poseStack, Language.getInstance().getVisualOrder(this.displayName), 23, 5, 0x000000);
          }
       }
 
@@ -356,7 +360,7 @@ public abstract class IndexViewScreen extends Screen {
          private final float collectionProgress;
          private final List<ItemStack> items;
 
-         public ModItemEntry(ItemStack item, FormattedCharSequence displayName, boolean collected, List<Component> tooltipLines, Component collection, float collectionProgress, List<ItemStack> items) {
+         public ModItemEntry(ItemStack item, FormattedText displayName, boolean collected, List<Component> tooltipLines, Component collection, float collectionProgress, List<ItemStack> items) {
             super(item, displayName, collected, tooltipLines);
             this.collection = collection;
             this.collectionProgress = collectionProgress;
@@ -366,7 +370,7 @@ public abstract class IndexViewScreen extends Screen {
          @SuppressWarnings("unchecked")
          @Override
          public <T extends Comparable<? super T>> T toComparableKey() {
-            return (T) this.collection.getString();
+            return (T) this.displayName.getString();
          }
 
          @Override
@@ -384,7 +388,7 @@ public abstract class IndexViewScreen extends Screen {
             super.renderForeground(minecraft, poseStack, mouseX, mouseY, partialTick);
             Font font = minecraft.font;
             int posX = 70 - font.width(this.displayName) / 2;
-            font.draw(poseStack, this.displayName, posX, 0, 0x000000);
+            font.draw(poseStack, Language.getInstance().getVisualOrder(this.displayName), posX, 0, 0x000000);
             posX = 70 - font.width(this.collection) / 2;
             font.draw(poseStack, this.collection, posX - 1, 10, 0x000000);
             font.draw(poseStack, this.collection, posX, 10 - 1, 0x000000);
