@@ -83,10 +83,4 @@ public class ModsIndexViewScreen extends IndexViewScreen implements StatsUpdateL
             this.font.draw(poseStack, component, (this.width - this.font.width(component)) / 2, this.topPos + 198 / 2, 0x000000);
         }
     }
-
-    @Override
-    public boolean isPauseScreen() {
-        // vanilla does this, not sure if it's important
-        return !this.isLoading;
-    }
 }
