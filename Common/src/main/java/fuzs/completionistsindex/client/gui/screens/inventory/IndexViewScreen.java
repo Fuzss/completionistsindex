@@ -30,9 +30,7 @@ import net.minecraft.world.item.ItemStack;
 import org.jetbrains.annotations.Nullable;
 
 import java.text.DecimalFormat;
-import java.util.Comparator;
-import java.util.List;
-import java.util.Optional;
+import java.util.*;
 
 public abstract class IndexViewScreen extends Screen {
    public static final ResourceLocation INDEX_LOCATION = CompletionistsIndex.id("textures/gui/index.png");
@@ -233,9 +231,11 @@ public abstract class IndexViewScreen extends Screen {
          if (modId.equals(ModsIndexViewScreen.ALL_ITEMS_KEY)) {
             modName = Component.translatable("gui.all");
          } else {
-            modName = Component.literal(ModLoaderEnvironment.INSTANCE.getModName(modId).orElseThrow());
+            // apparently mods on Fabric are not forced to use their mod id when registering content, so we might not find the mod and its name after all
+            // just use the prettified namespace then
+            modName = Component.literal(ModLoaderEnvironment.INSTANCE.getModName(modId).orElse(prettifyModId(modId)));
          }
-         ItemStack displayItem = items.stream().skip((long) (Math.random() * items.size())).findFirst().orElseThrow();
+         ItemStack displayItem = items.stream().skip((int) (Math.random() * items.size())).findAny().orElseThrow();
          long collectedCount = items.stream().filter(stack -> {
             int pickedUp = statsCounter.getValue(Stats.ITEM_PICKED_UP, stack.getItem());
             int crafted = statsCounter.getValue(Stats.ITEM_CRAFTED, stack.getItem());
@@ -245,6 +245,17 @@ public abstract class IndexViewScreen extends Screen {
          float collectionProgress = collectedCount / (float) items.size();
          Component tooltipComponent = Component.empty().append(modName).append(Component.literal(" (" + PERCENTAGE_FORMAT.format(collectionProgress * 100.0F) + "%)").withStyle(ChatFormatting.GOLD));
          return new ModItemEntry(displayItem, formatDisplayName(font, modName, collected), collected, List.of(tooltipComponent), Component.literal(collectedCount + "/" + items.size()), collectionProgress, items);
+      }
+
+      private static String prettifyModId(String modId) {
+         StringJoiner joiner = new StringJoiner(" ");
+         String[] parts = modId.split("_");
+         for (String part : parts) {
+            if (!part.isEmpty()) {
+               joiner.add(Character.toUpperCase(part.charAt(0)) + part.substring(1).toLowerCase(Locale.ROOT));
+            }
+         }
+         return joiner.toString();
       }
 
       public static Entry statsItemEntry(ItemStack stack, StatsCounter statsCounter, Font font) {
