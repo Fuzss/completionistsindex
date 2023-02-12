@@ -216,10 +216,12 @@ public abstract class IndexViewScreen extends Screen {
 
       public boolean mouseClicked(int mouseX, int mouseY, int buttonId) {
          for (int i = 0; i < this.entries.length; i++) {
+            Entry entry = this.entries[i];
+            if (entry == null) return false;
             int startX = i >= 7 ? this.screen.leftPos + 167 : this.screen.leftPos + 16;
             int startY = this.screen.topPos + 26;
-            if (this.entries[i].isMouseOver(mouseX - startX, mouseY - startY - i % 7 * 21)) {
-               return this.entries[i].mouseClicked(this.screen, mouseX, mouseY, buttonId);
+            if (entry.isMouseOver(mouseX - startX, mouseY - startY - i % 7 * 21)) {
+               return entry.mouseClicked(this.screen, mouseX, mouseY, buttonId);
             }
          }
          return false;
