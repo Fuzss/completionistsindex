@@ -104,8 +104,8 @@ public abstract class IndexViewScreen extends Screen {
       RenderSystem.setShaderColor(1.0F, 1.0F, 1.0F, 1.0F);
       RenderSystem.setShaderTexture(0, INDEX_LOCATION);
       blit(poseStack, this.leftPos, this.topPos, 0, 0, 316, 198, 512, 256);
-      this.font.draw(poseStack, this.leftPageIndicator, this.leftPos + 82 - this.font.width(this.leftPageIndicator) / 2, 15, 0xB8A48A);
-      this.font.draw(poseStack, this.rightPageIndicator, this.leftPos + 233 - this.font.width(this.rightPageIndicator) / 2, 15, 0xB8A48A);
+      this.font.draw(poseStack, this.leftPageIndicator, this.leftPos + 82 - this.font.width(this.leftPageIndicator) / 2, this.topPos + 13, 0xB8A48A);
+      this.font.draw(poseStack, this.rightPageIndicator, this.leftPos + 233 - this.font.width(this.rightPageIndicator) / 2, this.topPos + 13, 0xB8A48A);
       super.render(poseStack, mouseX, mouseY, tickDelta);
       if (this.pages != null) {
          this.pages.get(this.currentPage).render(poseStack, mouseX, mouseY, tickDelta);
