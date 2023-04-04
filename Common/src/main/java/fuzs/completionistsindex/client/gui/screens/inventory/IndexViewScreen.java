@@ -70,7 +70,7 @@ public abstract class IndexViewScreen extends Screen {
    @Override
    protected void init() {
       this.leftPos = (this.width - 316) / 2;
-      this.topPos = 2;
+      this.topPos = (this.height - 198) / 2;
       this.addRenderableWidget(new ImageButton(this.leftPos + 17, this.topPos + 11, 16, 13, 42, 202, 20, INDEX_LOCATION, 512, 256, button -> {
          this.onClose();
       }, (Button button, PoseStack poseStack, int mouseX, int mouseY) -> {
