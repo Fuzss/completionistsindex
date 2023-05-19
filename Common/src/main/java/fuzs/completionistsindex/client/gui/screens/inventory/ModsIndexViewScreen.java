@@ -34,7 +34,8 @@ public class ModsIndexViewScreen extends IndexViewScreen implements StatsUpdateL
 
     private static Map<String, List<ItemStack>> getAllItemsByMod() {
         Minecraft minecraft = Minecraft.getInstance();
-        CreativeModeTabs.tryRebuildTabContents(minecraft.player.connection.enabledFeatures(), minecraft.options.operatorItemsTab().get());
+        // always set hasPermissions to false, we do not want unobtainable items in the index
+        CreativeModeTabs.tryRebuildTabContents(minecraft.player.connection.enabledFeatures(), false, minecraft.level.registryAccess());
         Collection<ItemStack> displayItems = CreativeModeTabs.searchTab().getDisplayItems();
         List<ItemStack> items = displayItems.stream()
                 .map(ItemStack::getItem)

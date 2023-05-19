@@ -5,7 +5,6 @@ import com.google.common.collect.Lists;
 import com.mojang.blaze3d.systems.RenderSystem;
 import com.mojang.blaze3d.vertex.PoseStack;
 import fuzs.completionistsindex.CompletionistsIndex;
-import fuzs.completionistsindex.client.util.RenderHelper;
 import fuzs.puzzleslib.api.client.screen.v2.ScreenHelper;
 import fuzs.puzzleslib.api.core.v1.ModLoaderEnvironment;
 import net.minecraft.ChatFormatting;
@@ -200,8 +199,8 @@ public abstract class IndexViewScreen extends Screen {
             int mouseXOffset = mouseX - startX;
             int mouseYOffset = mouseY - startY - i % 7 * 21;
             Minecraft minecraft = ScreenHelper.INSTANCE.getMinecraft(this.screen);
-            entry.render(minecraft, poseStack, mouseXOffset, mouseYOffset, partialTick, this.screen.getBlitOffset());
-            if (entry.tryRenderTooltip(poseStack, mouseXOffset, mouseYOffset, this.screen.getBlitOffset())) {
+            entry.render(minecraft, poseStack, mouseXOffset, mouseYOffset, partialTick);
+            if (entry.tryRenderTooltip(poseStack, mouseXOffset, mouseYOffset)) {
                this.screen.tooltipLines = entry.getTooltipLines();
             }
             poseStack.translate(0.0F, 21.0F, 0.0F);
@@ -307,14 +306,14 @@ public abstract class IndexViewScreen extends Screen {
             return this.tooltipLines;
          }
 
-         public void render(Minecraft minecraft, PoseStack poseStack, int mouseX, int mouseY, float partialTick, int blitOffset) {
+         public void render(Minecraft minecraft, PoseStack poseStack, int mouseX, int mouseY, float partialTick) {
             this.renderBackground(poseStack, mouseX, mouseY, partialTick);
             this.renderForeground(minecraft, poseStack, mouseX, mouseY, partialTick);
          }
 
-         public boolean tryRenderTooltip(PoseStack poseStack, int mouseX, int mouseY, int blitOffset) {
+         public boolean tryRenderTooltip(PoseStack poseStack, int mouseX, int mouseY) {
             if (this.isHovering(0, 0, 18, 18, mouseX, mouseY)) {
-               AbstractContainerScreen.renderSlotHighlight(poseStack, 1, 1, blitOffset);
+               AbstractContainerScreen.renderSlotHighlight(poseStack, 1, 1, 0);
                return true;
             }
             return false;
@@ -341,7 +340,7 @@ public abstract class IndexViewScreen extends Screen {
          }
 
          public void renderForeground(Minecraft minecraft, PoseStack poseStack, int mouseX, int mouseY, float partialTick) {
-            RenderHelper.renderItemStackInGui(poseStack, this.item, 1, 1);
+            minecraft.getItemRenderer().renderAndDecorateItem(poseStack, this.item, 1, 1);
          }
       }
 
