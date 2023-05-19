@@ -1,9 +1,9 @@
 package fuzs.completionistsindex.config;
 
-import fuzs.puzzleslib.config.ConfigCore;
-import fuzs.puzzleslib.config.annotation.Config;
-import fuzs.puzzleslib.config.serialization.ConfigDataSet;
-import net.minecraft.core.Registry;
+import fuzs.puzzleslib.api.config.v3.Config;
+import fuzs.puzzleslib.api.config.v3.ConfigCore;
+import fuzs.puzzleslib.api.config.v3.serialization.ConfigDataSet;
+import net.minecraft.core.registries.Registries;
 import net.minecraft.world.item.Item;
 
 import java.util.List;
@@ -18,7 +18,7 @@ public class ClientConfig implements ConfigCore {
 
     @Override
     public void afterConfigReload() {
-        this.blacklist = ConfigDataSet.of(Registry.ITEM_REGISTRY, this.blacklistRaw);
+        this.blacklist = ConfigDataSet.from(Registries.ITEM, this.blacklistRaw);
     }
 
     public enum IndexButtonScreen {

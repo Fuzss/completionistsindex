@@ -1,31 +1,29 @@
 package fuzs.completionistsindex.client.gui.screens.inventory;
 
-import com.google.common.collect.ImmutableList;
-import com.google.common.collect.ImmutableMap;
-import com.google.common.collect.Lists;
 import com.google.common.collect.Maps;
 import com.mojang.blaze3d.vertex.PoseStack;
 import fuzs.completionistsindex.CompletionistsIndex;
 import fuzs.completionistsindex.config.ClientConfig;
 import net.minecraft.Util;
+import net.minecraft.client.Minecraft;
 import net.minecraft.client.gui.screens.Screen;
 import net.minecraft.client.gui.screens.achievement.StatsUpdateListener;
-import net.minecraft.core.NonNullList;
-import net.minecraft.core.Registry;
+import net.minecraft.core.registries.BuiltInRegistries;
 import net.minecraft.network.chat.Component;
 import net.minecraft.network.protocol.game.ServerboundClientCommandPacket;
 import net.minecraft.stats.StatsCounter;
-import net.minecraft.world.item.CreativeModeTab;
+import net.minecraft.world.item.CreativeModeTabs;
 import net.minecraft.world.item.ItemStack;
 
+import java.util.Collection;
 import java.util.List;
 import java.util.Map;
 import java.util.function.Predicate;
 import java.util.stream.Collectors;
 
 public class ModsIndexViewScreen extends IndexViewScreen implements StatsUpdateListener {
-    private static final Component PENDING_TEXT = Component.translatable("multiplayer.downloadingStats");
-    public static final String ALL_ITEMS_KEY = "__ALL__";
+    private static final Component DOWNLOAD_PENDING_COMPONENT = Component.translatable("multiplayer.downloadingStats");
+    public static final String ALL_ITEMS_PLACEHOLDER = "__ALL__";
 
     private final Map<String, List<ItemStack>> allItemsByMod = getAllItemsByMod();
     private boolean isLoading = true;
@@ -35,22 +33,20 @@ public class ModsIndexViewScreen extends IndexViewScreen implements StatsUpdateL
     }
 
     private static Map<String, List<ItemStack>> getAllItemsByMod() {
-        NonNullList<ItemStack> searchTabItems = NonNullList.create();
-        CreativeModeTab.TAB_SEARCH.fillItemList(searchTabItems);
-        // use linked hash map to maybe preserve mod order
-        List<ItemStack> allItems = searchTabItems.stream()
+        Minecraft minecraft = Minecraft.getInstance();
+        CreativeModeTabs.tryRebuildTabContents(minecraft.player.connection.enabledFeatures(), minecraft.options.operatorItemsTab().get());
+        Collection<ItemStack> displayItems = CreativeModeTabs.searchTab().getDisplayItems();
+        List<ItemStack> items = displayItems.stream()
                 .map(ItemStack::getItem)
                 .distinct()
                 .filter(Predicate.not(CompletionistsIndex.CONFIG.get(ClientConfig.class).blacklist::contains))
                 .map(ItemStack::new)
                 .collect(Collectors.toList());
-        Map<String, List<ItemStack>> allItemsByMod = Maps.newLinkedHashMap();
-        allItemsByMod.put(ALL_ITEMS_KEY, allItems);
-        for (ItemStack item : allItems) {
-            allItemsByMod.computeIfAbsent(Registry.ITEM.getKey(item.getItem()).getNamespace(), modId -> Lists.newArrayList()).add(item);
-        }
-        if (allItemsByMod.size() == 2) allItemsByMod.remove(ALL_ITEMS_KEY);
-        return allItemsByMod.entrySet().stream().collect(ImmutableMap.toImmutableMap(Map.Entry::getKey, e -> ImmutableList.copyOf(e.getValue())));
+        // use linked hash map to maybe preserve mod order
+        Map<String, List<ItemStack>> displayItemsByMod = items.stream()
+                .collect(Collectors.groupingBy(item -> BuiltInRegistries.ITEM.getKey(item.getItem()).getNamespace(), Maps::newLinkedHashMap, Collectors.toList()));
+        if (displayItemsByMod.size() > 1) displayItemsByMod.put(ALL_ITEMS_PLACEHOLDER, items);
+        return displayItemsByMod;
     }
 
     @Override
@@ -87,9 +83,8 @@ public class ModsIndexViewScreen extends IndexViewScreen implements StatsUpdateL
     public void render(PoseStack poseStack, int mouseX, int mouseY, float tickDelta) {
         super.render(poseStack, mouseX, mouseY, tickDelta);
         if (this.isLoading) {
-            Component component = PENDING_TEXT;
-            this.font.draw(poseStack, component, (this.width - this.font.width(component)) / 2, this.topPos + 198 / 2 - 9 * 2, 0x000000);
-            component = Component.literal(LOADING_SYMBOLS[(int) (Util.getMillis() / 150L % (long) LOADING_SYMBOLS.length)]);
+            this.font.draw(poseStack, DOWNLOAD_PENDING_COMPONENT, (this.width - this.font.width(DOWNLOAD_PENDING_COMPONENT)) / 2, this.topPos + 198 / 2 - 9 * 2, 0x000000);
+            Component component = Component.literal(LOADING_SYMBOLS[(int) (Util.getMillis() / 150L % (long) LOADING_SYMBOLS.length)]);
             this.font.draw(poseStack, component, (this.width - this.font.width(component)) / 2, this.topPos + 198 / 2, 0x000000);
         }
     }

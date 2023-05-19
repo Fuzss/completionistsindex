@@ -1,32 +1,33 @@
 package fuzs.completionistsindex.client.gui.screens.inventory;
 
 import com.google.common.collect.ImmutableList;
+import com.google.common.collect.Lists;
 import com.mojang.blaze3d.systems.RenderSystem;
 import com.mojang.blaze3d.vertex.PoseStack;
 import fuzs.completionistsindex.CompletionistsIndex;
 import fuzs.completionistsindex.client.util.RenderHelper;
-import fuzs.puzzleslib.client.gui.screens.CommonScreens;
-import fuzs.puzzleslib.core.ModLoaderEnvironment;
+import fuzs.puzzleslib.api.client.screen.v2.ScreenHelper;
+import fuzs.puzzleslib.api.core.v1.ModLoaderEnvironment;
 import net.minecraft.ChatFormatting;
 import net.minecraft.client.Minecraft;
 import net.minecraft.client.gui.Font;
 import net.minecraft.client.gui.components.Button;
 import net.minecraft.client.gui.components.ImageButton;
-import net.minecraft.client.gui.components.Widget;
+import net.minecraft.client.gui.components.Renderable;
+import net.minecraft.client.gui.components.Tooltip;
 import net.minecraft.client.gui.screens.Screen;
 import net.minecraft.client.gui.screens.inventory.AbstractContainerScreen;
 import net.minecraft.client.renderer.GameRenderer;
 import net.minecraft.client.resources.sounds.SimpleSoundInstance;
-import net.minecraft.core.Registry;
+import net.minecraft.core.registries.BuiltInRegistries;
 import net.minecraft.locale.Language;
-import net.minecraft.network.chat.Component;
-import net.minecraft.network.chat.FormattedText;
-import net.minecraft.network.chat.Style;
+import net.minecraft.network.chat.*;
 import net.minecraft.resources.ResourceLocation;
 import net.minecraft.sounds.SoundEvents;
 import net.minecraft.stats.Stats;
 import net.minecraft.stats.StatsCounter;
 import net.minecraft.world.item.ItemStack;
+import net.minecraft.world.item.TooltipFlag;
 import org.jetbrains.annotations.Nullable;
 
 import java.text.DecimalFormat;
@@ -34,13 +35,15 @@ import java.util.*;
 
 public abstract class IndexViewScreen extends Screen {
    public static final ResourceLocation INDEX_LOCATION = CompletionistsIndex.id("textures/gui/index.png");
+   private static final MutableComponent PREVIOUS_PAGE_COMPONENT = Component.translatable("createWorld.customize.custom.prev");
+   private static final MutableComponent NEXT_PAGE_COMPONENT = Component.translatable("createWorld.customize.custom.next");
 
    protected final Screen lastScreen;
    protected int leftPos;
    protected int topPos;
    private Button turnPageBackwards;
    private Button turnPageForwards;
-   private StatsSorting statsSorting = StatsSorting.CREATIVE;
+   private static StatsSorting statsSorting = StatsSorting.CREATIVE;
    private int currentPage;
    private Component leftPageIndicator;
    private Component rightPageIndicator;
@@ -51,13 +54,10 @@ public abstract class IndexViewScreen extends Screen {
    protected IndexViewScreen(Screen lastScreen) {
       super(Component.translatable("gui.stats"));
       this.lastScreen = lastScreen;
-      if (lastScreen instanceof IndexViewScreen indexViewScreen) {
-         this.statsSorting = indexViewScreen.statsSorting;
-      }
    }
 
    public Comparator<IndexViewPage.Entry> getComparator() {
-      return this.statsSorting.getComparator();
+      return statsSorting.getComparator();
    }
 
    protected abstract List<IndexViewPage.Entry> getPageEntries();
@@ -73,25 +73,20 @@ public abstract class IndexViewScreen extends Screen {
       this.topPos = (this.height - 198) / 2;
       this.addRenderableWidget(new ImageButton(this.leftPos + 17, this.topPos + 11, 16, 13, 42, 202, 20, INDEX_LOCATION, 512, 256, button -> {
          this.onClose();
-      }, (Button button, PoseStack poseStack, int mouseX, int mouseY) -> {
-         this.tooltipLines = List.of(Component.translatable("gui.back"));
-      }, Component.empty()));
+      })).setTooltip(Tooltip.create(CommonComponents.GUI_BACK));
       this.addRenderableWidget(new ImageButton(this.leftPos + 316 - 17 - 16, this.topPos + 11, 16, 13, 62, 202, 20, INDEX_LOCATION, 512, 256, button -> {
-         this.statsSorting = this.statsSorting.cycle();
+         statsSorting = statsSorting.cycle();
+         button.setTooltip(Tooltip.create(statsSorting.component));
          this.rebuildPages();
-      }, (Button button, PoseStack poseStack, int mouseX, int mouseY) -> {
-         this.tooltipLines = List.of(this.statsSorting.component);
-      }, Component.empty()));
+      })).setTooltip(Tooltip.create(statsSorting.component));
       this.turnPageBackwards = this.addRenderableWidget(new ImageButton(this.leftPos + 27, this.topPos + 173, 18, 10, 1, 203, 20, INDEX_LOCATION, 512, 256, button -> {
          this.decrementPage();
-      }, (Button button, PoseStack poseStack, int mouseX, int mouseY) -> {
-         this.tooltipLines = List.of(Component.translatable("createWorld.customize.custom.prev"));
-      }, Component.empty()));
+      }));
+      this.turnPageBackwards.setTooltip(Tooltip.create(PREVIOUS_PAGE_COMPONENT));
       this.turnPageForwards = this.addRenderableWidget(new ImageButton(this.leftPos + 316 - 27 - 18, this.topPos + 173, 18, 10, 21, 203, 20, INDEX_LOCATION, 512, 256, button -> {
          this.incrementPage();
-      }, (Button button, PoseStack poseStack, int mouseX, int mouseY) -> {
-         this.tooltipLines = List.of(Component.translatable("createWorld.customize.custom.next"));
-      }, Component.empty()));
+      }));
+      this.turnPageForwards.setTooltip(Tooltip.create(NEXT_PAGE_COMPONENT));
       this.setCurrentPage(this.currentPage);
    }
 
@@ -107,7 +102,7 @@ public abstract class IndexViewScreen extends Screen {
       this.font.draw(poseStack, this.leftPageIndicator, this.leftPos + 82 - this.font.width(this.leftPageIndicator) / 2, this.topPos + 13, 0xB8A48A);
       this.font.draw(poseStack, this.rightPageIndicator, this.leftPos + 233 - this.font.width(this.rightPageIndicator) / 2, this.topPos + 13, 0xB8A48A);
       super.render(poseStack, mouseX, mouseY, tickDelta);
-      if (this.pages != null) {
+      if (this.pages != null && !this.pages.isEmpty()) {
          this.pages.get(this.currentPage).render(poseStack, mouseX, mouseY, tickDelta);
       }
       if (this.tooltipLines != null) {
@@ -117,7 +112,7 @@ public abstract class IndexViewScreen extends Screen {
 
    @Override
    public boolean mouseClicked(double mouseX, double mouseY, int buttonId) {
-      if (!super.mouseClicked(mouseX, mouseY, buttonId) && this.pages != null) {
+      if (!super.mouseClicked(mouseX, mouseY, buttonId) && this.pages != null && !this.pages.isEmpty()) {
          return this.pages.get(this.currentPage).mouseClicked((int) mouseX, (int) mouseY, buttonId);
       }
       return false;
@@ -141,7 +136,7 @@ public abstract class IndexViewScreen extends Screen {
    }
 
    private int getAllPages() {
-      return this.pages != null ? this.pages.size() : 1;
+      return this.pages != null && !this.pages.isEmpty() ? this.pages.size() : 1;
    }
 
    @Override
@@ -162,7 +157,7 @@ public abstract class IndexViewScreen extends Screen {
       this.minecraft.setScreen(this.lastScreen);
    }
 
-   public static class IndexViewPage implements Widget {
+   public static class IndexViewPage implements Renderable {
       private static final DecimalFormat PERCENTAGE_FORMAT = new DecimalFormat("#.##");
 
       private final Entry[] entries = new Entry[14];
@@ -204,7 +199,7 @@ public abstract class IndexViewScreen extends Screen {
             if (entry == null) break;
             int mouseXOffset = mouseX - startX;
             int mouseYOffset = mouseY - startY - i % 7 * 21;
-            Minecraft minecraft = CommonScreens.INSTANCE.getMinecraft(this.screen);
+            Minecraft minecraft = ScreenHelper.INSTANCE.getMinecraft(this.screen);
             entry.render(minecraft, poseStack, mouseXOffset, mouseYOffset, partialTick, this.screen.getBlitOffset());
             if (entry.tryRenderTooltip(poseStack, mouseXOffset, mouseYOffset, this.screen.getBlitOffset())) {
                this.screen.tooltipLines = entry.getTooltipLines();
@@ -230,7 +225,7 @@ public abstract class IndexViewScreen extends Screen {
       public static Entry modItemEntry(String modId, List<ItemStack> items, StatsCounter statsCounter, Font font) {
          if (items.isEmpty()) throw new IllegalArgumentException("items cannot be empty");
          Component modName;
-         if (modId.equals(ModsIndexViewScreen.ALL_ITEMS_KEY)) {
+         if (modId.equals(ModsIndexViewScreen.ALL_ITEMS_PLACEHOLDER)) {
             modName = Component.translatable("gui.all");
          } else {
             // apparently mods on Fabric are not forced to use their mod id when registering content, so we might not find the mod and its name after all
@@ -266,15 +261,16 @@ public abstract class IndexViewScreen extends Screen {
          boolean collected = pickedUp > 0 || crafted > 0;
          Component displayName = stack.getItem().getName(stack);
          FormattedText formattedName = formatDisplayName(font, displayName, collected);
-         ImmutableList.Builder<Component> builder = ImmutableList.builder();
-         builder.add(Component.empty().append(stack.getItem().getName(stack)).withStyle(stack.getRarity().color));
+         List<Component> lines = Lists.newArrayList();
+         lines.add(Component.empty().append(stack.getItem().getName(stack)).withStyle(stack.getRarity().color));
+         stack.getItem().appendHoverText(stack, null, lines, TooltipFlag.NORMAL);
          if (pickedUp > 0) {
-            builder.add(Component.literal(String.valueOf(pickedUp)).append(" ").append(Component.translatable("stat_type.minecraft.picked_up")).withStyle(ChatFormatting.BLUE));
+            lines.add(Component.literal(String.valueOf(pickedUp)).append(" ").append(Component.translatable("stat_type.minecraft.picked_up")).withStyle(ChatFormatting.BLUE));
          }
          if (crafted > 0) {
-            builder.add(Component.literal(String.valueOf(crafted)).append(" ").append(Component.translatable("stat_type.minecraft.crafted")).withStyle(ChatFormatting.BLUE));
+            lines.add(Component.literal(String.valueOf(crafted)).append(" ").append(Component.translatable("stat_type.minecraft.crafted")).withStyle(ChatFormatting.BLUE));
          }
-         return new StatsItemEntry(stack, formattedName, collected, builder.build());
+         return new StatsItemEntry(stack, formattedName, collected, ImmutableList.copyOf(lines));
       }
 
       private static FormattedText formatDisplayName(Font font, Component displayName, boolean collected) {
@@ -358,7 +354,7 @@ public abstract class IndexViewScreen extends Screen {
          @SuppressWarnings("unchecked")
          @Override
          public <T extends Comparable<? super T>> T toComparableKey() {
-            return (T) Registry.ITEM.getKey(this.item.getItem()).getPath();
+            return (T) BuiltInRegistries.ITEM.getKey(this.item.getItem()).getPath();
          }
 
          @Override
@@ -412,7 +408,7 @@ public abstract class IndexViewScreen extends Screen {
 
          @Override
          public boolean mouseClicked(IndexViewScreen screen, int mouseX, int mouseY, int buttonId) {
-            Minecraft minecraft = CommonScreens.INSTANCE.getMinecraft(screen);
+            Minecraft minecraft = ScreenHelper.INSTANCE.getMinecraft(screen);
             minecraft.setScreen(new ItemsIndexViewScreen(screen, this.items));
             minecraft.getSoundManager().play(SimpleSoundInstance.forUI(SoundEvents.UI_BUTTON_CLICK, 1.0F));
             return true;

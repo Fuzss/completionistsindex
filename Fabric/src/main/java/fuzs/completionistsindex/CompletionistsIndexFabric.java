@@ -1,12 +1,12 @@
 package fuzs.completionistsindex;
 
-import fuzs.puzzleslib.core.CommonFactories;
+import fuzs.puzzleslib.api.core.v1.ModConstructor;
 import net.fabricmc.api.ModInitializer;
 
 public class CompletionistsIndexFabric implements ModInitializer {
 
     @Override
     public void onInitialize() {
-        CommonFactories.INSTANCE.modConstructor(CompletionistsIndex.MOD_ID).accept(new CompletionistsIndex());
+        ModConstructor.construct(CompletionistsIndex.MOD_ID, CompletionistsIndex::new);
     }
 }
