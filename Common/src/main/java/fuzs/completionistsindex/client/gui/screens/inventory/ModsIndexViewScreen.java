@@ -1,11 +1,11 @@
 package fuzs.completionistsindex.client.gui.screens.inventory;
 
 import com.google.common.collect.Maps;
-import com.mojang.blaze3d.vertex.PoseStack;
 import fuzs.completionistsindex.CompletionistsIndex;
 import fuzs.completionistsindex.config.ClientConfig;
 import net.minecraft.Util;
 import net.minecraft.client.Minecraft;
+import net.minecraft.client.gui.GuiGraphics;
 import net.minecraft.client.gui.screens.Screen;
 import net.minecraft.client.gui.screens.achievement.StatsUpdateListener;
 import net.minecraft.core.registries.BuiltInRegistries;
@@ -81,12 +81,12 @@ public class ModsIndexViewScreen extends IndexViewScreen implements StatsUpdateL
     }
 
     @Override
-    public void render(PoseStack poseStack, int mouseX, int mouseY, float tickDelta) {
-        super.render(poseStack, mouseX, mouseY, tickDelta);
+    public void render(GuiGraphics guiGraphics, int mouseX, int mouseY, float tickDelta) {
+        super.render(guiGraphics, mouseX, mouseY, tickDelta);
         if (this.isLoading) {
-            this.font.draw(poseStack, DOWNLOAD_PENDING_COMPONENT, (this.width - this.font.width(DOWNLOAD_PENDING_COMPONENT)) / 2, this.topPos + 198 / 2 - 9 * 2, 0x000000);
+            guiGraphics.drawString(this.font, DOWNLOAD_PENDING_COMPONENT, (this.width - this.font.width(DOWNLOAD_PENDING_COMPONENT)) / 2, this.topPos + 198 / 2 - 9 * 2, 0x000000, false);
             Component component = Component.literal(LOADING_SYMBOLS[(int) (Util.getMillis() / 150L % (long) LOADING_SYMBOLS.length)]);
-            this.font.draw(poseStack, component, (this.width - this.font.width(component)) / 2, this.topPos + 198 / 2, 0x000000);
+            guiGraphics.drawString(this.font, component, (this.width - this.font.width(component)) / 2, this.topPos + 198 / 2, 0x000000, false);
         }
     }
 }

@@ -3,20 +3,19 @@ package fuzs.completionistsindex.client.gui.screens.inventory;
 import com.google.common.collect.ImmutableList;
 import com.google.common.collect.Lists;
 import com.mojang.blaze3d.systems.RenderSystem;
-import com.mojang.blaze3d.vertex.PoseStack;
 import fuzs.completionistsindex.CompletionistsIndex;
 import fuzs.puzzleslib.api.client.screen.v2.ScreenHelper;
 import fuzs.puzzleslib.api.core.v1.ModLoaderEnvironment;
 import net.minecraft.ChatFormatting;
 import net.minecraft.client.Minecraft;
 import net.minecraft.client.gui.Font;
+import net.minecraft.client.gui.GuiGraphics;
 import net.minecraft.client.gui.components.Button;
 import net.minecraft.client.gui.components.ImageButton;
 import net.minecraft.client.gui.components.Renderable;
 import net.minecraft.client.gui.components.Tooltip;
 import net.minecraft.client.gui.screens.Screen;
 import net.minecraft.client.gui.screens.inventory.AbstractContainerScreen;
-import net.minecraft.client.renderer.GameRenderer;
 import net.minecraft.client.resources.sounds.SimpleSoundInstance;
 import net.minecraft.core.registries.BuiltInRegistries;
 import net.minecraft.locale.Language;
@@ -90,22 +89,20 @@ public abstract class IndexViewScreen extends Screen {
    }
 
    @Override
-   public void render(PoseStack poseStack, int mouseX, int mouseY, float tickDelta) {
+   public void render(GuiGraphics guiGraphics, int mouseX, int mouseY, float tickDelta) {
       this.tooltipLines = null;
-      this.renderBackground(poseStack);
+      this.renderBackground(guiGraphics);
       this.setFocused(null);
-      RenderSystem.setShader(GameRenderer::getPositionTexShader);
       RenderSystem.setShaderColor(1.0F, 1.0F, 1.0F, 1.0F);
-      RenderSystem.setShaderTexture(0, INDEX_LOCATION);
-      blit(poseStack, this.leftPos, this.topPos, 0, 0, 316, 198, 512, 256);
-      this.font.draw(poseStack, this.leftPageIndicator, this.leftPos + 82 - this.font.width(this.leftPageIndicator) / 2, this.topPos + 13, 0xB8A48A);
-      this.font.draw(poseStack, this.rightPageIndicator, this.leftPos + 233 - this.font.width(this.rightPageIndicator) / 2, this.topPos + 13, 0xB8A48A);
-      super.render(poseStack, mouseX, mouseY, tickDelta);
+      guiGraphics.blit(INDEX_LOCATION, this.leftPos, this.topPos, 0, 0, 316, 198, 512, 256);
+      guiGraphics.drawString(this.font, this.leftPageIndicator, this.leftPos + 82 - this.font.width(this.leftPageIndicator) / 2, this.topPos + 13, 0xB8A48A, false);
+      guiGraphics.drawString(this.font, this.rightPageIndicator, this.leftPos + 233 - this.font.width(this.rightPageIndicator) / 2, this.topPos + 13, 0xB8A48A, false);
+      super.render(guiGraphics, mouseX, mouseY, tickDelta);
       if (this.pages != null && !this.pages.isEmpty()) {
-         this.pages.get(this.currentPage).render(poseStack, mouseX, mouseY, tickDelta);
+         this.pages.get(this.currentPage).render(guiGraphics, mouseX, mouseY, tickDelta);
       }
       if (this.tooltipLines != null) {
-         this.renderTooltip(poseStack, this.tooltipLines, Optional.empty(), mouseX, mouseY);
+         guiGraphics.renderTooltip(this.font, this.tooltipLines, Optional.empty(), mouseX, mouseY);
       }
    }
 
@@ -185,27 +182,27 @@ public abstract class IndexViewScreen extends Screen {
       }
 
       @Override
-      public void render(PoseStack poseStack, int mouseX, int mouseY, float partialTick) {
-         this.renderPageHalf(poseStack, mouseX, mouseY, partialTick, this.screen.leftPos + 16, this.screen.topPos + 26, 0, 7);
-         this.renderPageHalf(poseStack, mouseX, mouseY, partialTick, this.screen.leftPos + 167, this.screen.topPos + 26, 7, 14);
+      public void render(GuiGraphics guiGraphics, int mouseX, int mouseY, float partialTick) {
+         this.renderPageHalf(guiGraphics, mouseX, mouseY, partialTick, this.screen.leftPos + 16, this.screen.topPos + 26, 0, 7);
+         this.renderPageHalf(guiGraphics, mouseX, mouseY, partialTick, this.screen.leftPos + 167, this.screen.topPos + 26, 7, 14);
       }
 
-      private void renderPageHalf(PoseStack poseStack, int mouseX, int mouseY, float partialTick, int startX, int startY, int startIndex, int endIndex) {
-         poseStack.pushPose();
-         poseStack.translate(startX, startY, 0.0F);
+      private void renderPageHalf(GuiGraphics guiGraphics, int mouseX, int mouseY, float partialTick, int startX, int startY, int startIndex, int endIndex) {
+         guiGraphics.pose().pushPose();
+         guiGraphics.pose().translate(startX, startY, 0.0F);
          for (int i = startIndex; i < endIndex; i++) {
             Entry entry = this.entries[i];
             if (entry == null) break;
             int mouseXOffset = mouseX - startX;
             int mouseYOffset = mouseY - startY - i % 7 * 21;
             Minecraft minecraft = ScreenHelper.INSTANCE.getMinecraft(this.screen);
-            entry.render(minecraft, poseStack, mouseXOffset, mouseYOffset, partialTick);
-            if (entry.tryRenderTooltip(poseStack, mouseXOffset, mouseYOffset)) {
+            entry.render(minecraft, guiGraphics, mouseXOffset, mouseYOffset, partialTick);
+            if (entry.tryRenderTooltip(guiGraphics, mouseXOffset, mouseYOffset)) {
                this.screen.tooltipLines = entry.getTooltipLines();
             }
-            poseStack.translate(0.0F, 21.0F, 0.0F);
+            guiGraphics.pose().translate(0.0F, 21.0F, 0.0F);
          }
-         poseStack.popPose();
+         guiGraphics.pose().popPose();
       }
 
       public boolean mouseClicked(int mouseX, int mouseY, int buttonId) {
@@ -306,14 +303,14 @@ public abstract class IndexViewScreen extends Screen {
             return this.tooltipLines;
          }
 
-         public void render(Minecraft minecraft, PoseStack poseStack, int mouseX, int mouseY, float partialTick) {
-            this.renderBackground(poseStack, mouseX, mouseY, partialTick);
-            this.renderForeground(minecraft, poseStack, mouseX, mouseY, partialTick);
+         public void render(Minecraft minecraft, GuiGraphics guiGraphics, int mouseX, int mouseY, float partialTick) {
+            this.renderBackground(guiGraphics, mouseX, mouseY, partialTick);
+            this.renderForeground(minecraft, guiGraphics, mouseX, mouseY, partialTick);
          }
 
-         public boolean tryRenderTooltip(PoseStack poseStack, int mouseX, int mouseY) {
+         public boolean tryRenderTooltip(GuiGraphics guiGraphics, int mouseX, int mouseY) {
             if (this.isHovering(0, 0, 18, 18, mouseX, mouseY)) {
-               AbstractContainerScreen.renderSlotHighlight(poseStack, 1, 1, 0);
+               AbstractContainerScreen.renderSlotHighlight(guiGraphics, 1, 1, 0);
                return true;
             }
             return false;
@@ -331,16 +328,14 @@ public abstract class IndexViewScreen extends Screen {
             return mouseX > minX && mouseX <= maxX && mouseY > minY && mouseY <= maxY;
          }
 
-         public void renderBackground(PoseStack poseStack, int mouseX, int mouseY, float partialTick) {
-            RenderSystem.setShader(GameRenderer::getPositionTexShader);
+         public void renderBackground(GuiGraphics guiGraphics, int mouseX, int mouseY, float partialTick) {
             RenderSystem.setShaderColor(1.0F, 1.0F, 1.0F, 1.0F);
-            RenderSystem.setShaderTexture(0, INDEX_LOCATION);
-            blit(poseStack, 0, 0, 120, 208, 18, 18, 512, 256);
-            blit(poseStack, 124, 4, 120 + (this.collected ? 10 : 0), 198, 10, 10, 512, 256);
+            guiGraphics.blit(INDEX_LOCATION, 0, 0, 120, 208, 18, 18, 512, 256);
+            guiGraphics.blit(INDEX_LOCATION, 124, 4, 120 + (this.collected ? 10 : 0), 198, 10, 10, 512, 256);
          }
 
-         public void renderForeground(Minecraft minecraft, PoseStack poseStack, int mouseX, int mouseY, float partialTick) {
-            minecraft.getItemRenderer().renderAndDecorateItem(poseStack, this.item, 1, 1);
+         public void renderForeground(Minecraft minecraft, GuiGraphics guiGraphics, int mouseX, int mouseY, float partialTick) {
+            guiGraphics.renderItem(this.item, 1, 1);
          }
       }
 
@@ -357,9 +352,9 @@ public abstract class IndexViewScreen extends Screen {
          }
 
          @Override
-         public void renderForeground(Minecraft minecraft, PoseStack poseStack, int mouseX, int mouseY, float partialTick) {
-            super.renderForeground(minecraft, poseStack, mouseX, mouseY, partialTick);
-            minecraft.font.draw(poseStack, Language.getInstance().getVisualOrder(this.displayName), 23, 5, 0x000000);
+         public void renderForeground(Minecraft minecraft, GuiGraphics guiGraphics, int mouseX, int mouseY, float partialTick) {
+            super.renderForeground(minecraft, guiGraphics, mouseX, mouseY, partialTick);
+            guiGraphics.drawString(minecraft.font, Language.getInstance().getVisualOrder(this.displayName), 23, 5, 0x000000, false);
          }
       }
 
@@ -382,27 +377,28 @@ public abstract class IndexViewScreen extends Screen {
          }
 
          @Override
-         public void renderBackground(PoseStack poseStack, int mouseX, int mouseY, float partialTick) {
-            super.renderBackground(poseStack, mouseX, mouseY, partialTick);
-            blit(poseStack, 24, 11, 140, 198, 91, 5, 512, 256);
-            blit(poseStack, 24, 11, 140, 203, (int) (91 * this.collectionProgress), 5, 512, 256);
+         public void renderBackground(GuiGraphics guiGraphics, int mouseX, int mouseY, float partialTick) {
+            super.renderBackground(guiGraphics, mouseX, mouseY, partialTick);
+            RenderSystem.setShaderColor(1.0F, 1.0F, 1.0F, 1.0F);
+            guiGraphics.blit(INDEX_LOCATION, 24, 11, 140, 198, 91, 5, 512, 256);
+            guiGraphics.blit(INDEX_LOCATION, 24, 11, 140, 203, (int) (91 * this.collectionProgress), 5, 512, 256);
             if (this.isMouseOver(mouseX, mouseY)) {
-               blit(poseStack, -2, -2, 316, 0, 140, 22, 512, 256);
+               guiGraphics.blit(INDEX_LOCATION, -2, -2, 316, 0, 140, 22, 512, 256);
             }
          }
 
          @Override
-         public void renderForeground(Minecraft minecraft, PoseStack poseStack, int mouseX, int mouseY, float partialTick) {
-            super.renderForeground(minecraft, poseStack, mouseX, mouseY, partialTick);
+         public void renderForeground(Minecraft minecraft, GuiGraphics guiGraphics, int mouseX, int mouseY, float partialTick) {
+            super.renderForeground(minecraft, guiGraphics, mouseX, mouseY, partialTick);
             Font font = minecraft.font;
             int posX = 70 - font.width(this.displayName) / 2;
-            font.draw(poseStack, Language.getInstance().getVisualOrder(this.displayName), posX, 0, 0x000000);
+            guiGraphics.drawString(font, Language.getInstance().getVisualOrder(this.displayName), posX, 0, 0x000000, false);
             posX = 70 - font.width(this.collection) / 2;
-            font.draw(poseStack, this.collection, posX - 1, 10, 0x000000);
-            font.draw(poseStack, this.collection, posX, 10 - 1, 0x000000);
-            font.draw(poseStack, this.collection, posX, 10 + 1, 0x000000);
-            font.draw(poseStack, this.collection, posX + 1, 10, 0x000000);
-            font.draw(poseStack, this.collection, posX, 10, 0xFFC700);
+            guiGraphics.drawString(font, this.collection, posX - 1, 10, 0x000000, false);
+            guiGraphics.drawString(font, this.collection, posX, 10 - 1, 0x000000, false);
+            guiGraphics.drawString(font, this.collection, posX, 10 + 1, 0x000000, false);
+            guiGraphics.drawString(font, this.collection, posX + 1, 10, 0x000000, false);
+            guiGraphics.drawString(font, this.collection, posX, 10, 0xFFC700, false);
          }
 
          @Override
