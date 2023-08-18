@@ -29,7 +29,7 @@ public class IndexButtonHandler {
         if (CompletionistsIndex.CONFIG.get(ClientConfig.class).indexButtonScreen == ClientConfig.IndexButtonScreen.PAUSE_MENU) return;
         recipeBookButton = findRecipeBookButton(widgets);
         if (recipeBookButton == null) return;
-        collectorsLogButton = new ImageButton(recipeBookButton.getX() + recipeBookButton.getWidth() + 8, recipeBookButton.getY(), 20, 18, 100, 198, 18, IndexViewScreen.INDEX_LOCATION, 512, 256, button -> {
+        collectorsLogButton = new ImageButton(recipeBookButton.x + recipeBookButton.getWidth() + 8, recipeBookButton.y, 20, 18, 100, 198, 18, IndexViewScreen.INDEX_LOCATION, 512, 256, button -> {
             minecraft.setScreen(new ModsIndexViewScreen(screen));
         });
         addWidget.accept(collectorsLogButton);
@@ -47,8 +47,8 @@ public class IndexButtonHandler {
 
     public static void onMouseClicked$Post(Screen screen, double mouseX, double mouseY, int button) {
         if (collectorsLogButton != null && recipeBookButton != null) {
-            collectorsLogButton.setX(recipeBookButton.getX() + recipeBookButton.getWidth() + 8);
-            collectorsLogButton.setY(recipeBookButton.getY());
+            collectorsLogButton.x = recipeBookButton.x + recipeBookButton.getWidth() + 8;
+            collectorsLogButton.y = recipeBookButton.y;
         }
     }
 

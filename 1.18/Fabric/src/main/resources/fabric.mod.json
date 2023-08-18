@@ -16,7 +16,7 @@
     "sources": "${modPageUrl}"
   },
 
-  "license": "${modLicense}",
+  "license": "MPL-2.0",
   "icon": "mod_logo.png",
 
   "environment": "${modFabricEnvironment}",
@@ -31,8 +31,6 @@
   },
 
   "mixins": [
-    "${modId}.common.mixins.json",
-    "${modId}.fabric.mixins.json"
   ],
 
   "depends": {
