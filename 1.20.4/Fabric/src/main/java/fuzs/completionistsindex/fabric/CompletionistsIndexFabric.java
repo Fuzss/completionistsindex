@@ -1,5 +1,6 @@
-package fuzs.completionistsindex;
+package fuzs.completionistsindex.fabric;
 
+import fuzs.completionistsindex.CompletionistsIndex;
 import fuzs.puzzleslib.api.core.v1.ModConstructor;
 import net.fabricmc.api.ModInitializer;
 

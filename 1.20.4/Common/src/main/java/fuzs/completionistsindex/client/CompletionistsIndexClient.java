@@ -2,8 +2,9 @@ package fuzs.completionistsindex.client;
 
 import fuzs.completionistsindex.client.handler.IndexButtonHandler;
 import fuzs.puzzleslib.api.client.core.v1.ClientModConstructor;
-import fuzs.puzzleslib.api.client.event.v1.ScreenEvents;
-import fuzs.puzzleslib.api.client.event.v1.ScreenMouseEvents;
+import fuzs.puzzleslib.api.client.event.v1.gui.ScreenEvents;
+import fuzs.puzzleslib.api.client.event.v1.gui.ScreenMouseEvents;
+import net.minecraft.client.gui.screens.PauseScreen;
 import net.minecraft.client.gui.screens.inventory.InventoryScreen;
 
 public class CompletionistsIndexClient implements ClientModConstructor {
@@ -15,7 +16,7 @@ public class CompletionistsIndexClient implements ClientModConstructor {
 
     private static void registerHandlers() {
         ScreenMouseEvents.afterMouseClick(InventoryScreen.class).register(IndexButtonHandler::onMouseClicked$Post);
-        ScreenEvents.AFTER_INIT.register(IndexButtonHandler::onScreenInit$Post$1);
-        ScreenEvents.AFTER_INIT.register(IndexButtonHandler::onScreenInit$Post$2);
+        ScreenEvents.afterInit(InventoryScreen.class).register(IndexButtonHandler::onScreenInit$Post$1);
+        ScreenEvents.afterInit(PauseScreen.class).register(IndexButtonHandler::onScreenInit$Post$2);
     }
 }

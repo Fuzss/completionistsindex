@@ -8,10 +8,14 @@ import java.util.Comparator;
 public enum StatsSorting {
     CREATIVE("creative"), ALPHABETICALLY("alphabetically"), COLLECTED("collected");
 
-    public final Component component;
+    private final Component component;
 
-    StatsSorting(String translationId) {
-        this.component = Component.translatable("completionistsindex.gui.index.sorting." + translationId);
+    StatsSorting(String translationKey) {
+        this.component = Component.translatable("completionistsindex.gui.index.sorting." + translationKey);
+    }
+
+    public Component getComponent() {
+        return this.component;
     }
 
     public StatsSorting cycle() {

@@ -2,16 +2,18 @@ package fuzs.completionistsindex.client.gui.screens.inventory;
 
 import com.google.common.collect.ImmutableList;
 import com.google.common.collect.Lists;
+import com.mojang.blaze3d.platform.InputConstants;
 import com.mojang.blaze3d.systems.RenderSystem;
 import fuzs.completionistsindex.CompletionistsIndex;
-import fuzs.puzzleslib.api.client.screen.v2.ScreenHelper;
+import fuzs.puzzleslib.api.client.gui.v2.components.SpritelessImageButton;
+import fuzs.puzzleslib.api.client.gui.v2.screen.ScreenHelper;
+import fuzs.puzzleslib.api.core.v1.ModContainer;
 import fuzs.puzzleslib.api.core.v1.ModLoaderEnvironment;
 import net.minecraft.ChatFormatting;
 import net.minecraft.client.Minecraft;
 import net.minecraft.client.gui.Font;
 import net.minecraft.client.gui.GuiGraphics;
 import net.minecraft.client.gui.components.Button;
-import net.minecraft.client.gui.components.ImageButton;
 import net.minecraft.client.gui.components.Renderable;
 import net.minecraft.client.gui.components.Tooltip;
 import net.minecraft.client.gui.screens.Screen;
@@ -69,19 +71,19 @@ public abstract class IndexViewScreen extends Screen {
    protected void init() {
       this.leftPos = (this.width - 316) / 2;
       this.topPos = (this.height - 198) / 2;
-      this.addRenderableWidget(new ImageButton(this.leftPos + 17, this.topPos + 11, 16, 13, 42, 202, 20, INDEX_LOCATION, 512, 256, button -> {
+      this.addRenderableWidget(new SpritelessImageButton(this.leftPos + 17, this.topPos + 11, 16, 13, 42, 202, 20, INDEX_LOCATION, 512, 256, button -> {
          this.onClose();
       })).setTooltip(Tooltip.create(CommonComponents.GUI_BACK));
-      this.addRenderableWidget(new ImageButton(this.leftPos + 316 - 17 - 16, this.topPos + 11, 16, 13, 62, 202, 20, INDEX_LOCATION, 512, 256, button -> {
+      this.addRenderableWidget(new SpritelessImageButton(this.leftPos + 316 - 17 - 16, this.topPos + 11, 16, 13, 62, 202, 20, INDEX_LOCATION, 512, 256, button -> {
          statsSorting = statsSorting.cycle();
-         button.setTooltip(Tooltip.create(statsSorting.component));
+         button.setTooltip(Tooltip.create(statsSorting.getComponent()));
          this.rebuildPages();
-      })).setTooltip(Tooltip.create(statsSorting.component));
-      this.turnPageBackwards = this.addRenderableWidget(new ImageButton(this.leftPos + 27, this.topPos + 173, 18, 10, 1, 203, 20, INDEX_LOCATION, 512, 256, button -> {
+      })).setTooltip(Tooltip.create(statsSorting.getComponent()));
+      this.turnPageBackwards = this.addRenderableWidget(new SpritelessImageButton(this.leftPos + 27, this.topPos + 173, 18, 10, 1, 203, 20, INDEX_LOCATION, 512, 256, button -> {
          this.decrementPage();
       }));
       this.turnPageBackwards.setTooltip(Tooltip.create(PREVIOUS_PAGE_COMPONENT));
-      this.turnPageForwards = this.addRenderableWidget(new ImageButton(this.leftPos + 316 - 27 - 18, this.topPos + 173, 18, 10, 21, 203, 20, INDEX_LOCATION, 512, 256, button -> {
+      this.turnPageForwards = this.addRenderableWidget(new SpritelessImageButton(this.leftPos + 316 - 27 - 18, this.topPos + 173, 18, 10, 21, 203, 20, INDEX_LOCATION, 512, 256, button -> {
          this.incrementPage();
       }));
       this.turnPageForwards.setTooltip(Tooltip.create(NEXT_PAGE_COMPONENT));
@@ -89,14 +91,18 @@ public abstract class IndexViewScreen extends Screen {
    }
 
    @Override
-   public void render(GuiGraphics guiGraphics, int mouseX, int mouseY, float tickDelta) {
-      this.tooltipLines = null;
-      this.renderBackground(guiGraphics);
-      this.setFocused(null);
+   public void renderBackground(GuiGraphics guiGraphics, int mouseX, int mouseY, float partialTick) {
+      super.renderBackground(guiGraphics, mouseX, mouseY, partialTick);
       RenderSystem.setShaderColor(1.0F, 1.0F, 1.0F, 1.0F);
       guiGraphics.blit(INDEX_LOCATION, this.leftPos, this.topPos, 0, 0, 316, 198, 512, 256);
       guiGraphics.drawString(this.font, this.leftPageIndicator, this.leftPos + 82 - this.font.width(this.leftPageIndicator) / 2, this.topPos + 13, 0xB8A48A, false);
       guiGraphics.drawString(this.font, this.rightPageIndicator, this.leftPos + 233 - this.font.width(this.rightPageIndicator) / 2, this.topPos + 13, 0xB8A48A, false);
+   }
+
+   @Override
+   public void render(GuiGraphics guiGraphics, int mouseX, int mouseY, float tickDelta) {
+      this.tooltipLines = null;
+      this.setFocused(null);
       super.render(guiGraphics, mouseX, mouseY, tickDelta);
       if (this.pages != null && !this.pages.isEmpty()) {
          this.pages.get(this.currentPage).render(guiGraphics, mouseX, mouseY, tickDelta);
@@ -136,15 +142,27 @@ public abstract class IndexViewScreen extends Screen {
    }
 
    @Override
-   public boolean mouseScrolled(double mouseX, double mouseY, double delta) {
-      if (delta > 0.0) {
+   public boolean mouseScrolled(double mouseX, double mouseY, double scrollX, double scrollY) {
+      if (scrollX > 0.0 || scrollY > 0.0) {
          this.decrementPage();
          return true;
-      } else if (delta < 0.0) {
+      } else if (scrollX < 0.0 || scrollY < 0.0) {
          this.incrementPage();
          return true;
       } else {
-         return super.mouseScrolled(mouseX, mouseY, delta);
+         return super.mouseScrolled(mouseX, mouseY, scrollX, scrollY);
+      }
+   }
+
+   @Override
+   public boolean keyPressed(int keyCode, int scanCode, int modifiers) {
+      if (super.keyPressed(keyCode, scanCode, modifiers)) {
+         return true;
+      } else if (keyCode == InputConstants.KEY_BACKSPACE && this.shouldCloseOnEsc()) {
+         this.onClose();
+         return true;
+      } else {
+          return false;
       }
    }
 
@@ -226,7 +244,7 @@ public abstract class IndexViewScreen extends Screen {
          } else {
             // apparently mods on Fabric are not forced to use their mod id when registering content, so we might not find the mod and its name after all
             // just use the prettified namespace then
-            modName = Component.literal(ModLoaderEnvironment.INSTANCE.getModName(modId).orElse(prettifyModId(modId)));
+            modName = Component.literal(ModLoaderEnvironment.INSTANCE.getModContainer(modId).map(ModContainer::getDisplayName).orElse(prettifyModId(modId)));
          }
          ItemStack displayItem = items.stream().skip((int) (Math.random() * items.size())).findAny().orElseThrow();
          long collectedCount = items.stream().filter(stack -> {
@@ -320,7 +338,7 @@ public abstract class IndexViewScreen extends Screen {
             return this.isHovering(0, 0, 134, 18, mouseX, mouseY);
          }
 
-         public boolean mouseClicked(IndexViewScreen screen, int mouseX, int mouseY, int buttonId) {
+         public boolean mouseClicked(Screen screen, int mouseX, int mouseY, int buttonId) {
             return false;
          }
 
@@ -402,7 +420,7 @@ public abstract class IndexViewScreen extends Screen {
          }
 
          @Override
-         public boolean mouseClicked(IndexViewScreen screen, int mouseX, int mouseY, int buttonId) {
+         public boolean mouseClicked(Screen screen, int mouseX, int mouseY, int buttonId) {
             Minecraft minecraft = ScreenHelper.INSTANCE.getMinecraft(screen);
             minecraft.setScreen(new ItemsIndexViewScreen(screen, this.items));
             minecraft.getSoundManager().play(SimpleSoundInstance.forUI(SoundEvents.UI_BUTTON_CLICK, 1.0F));
