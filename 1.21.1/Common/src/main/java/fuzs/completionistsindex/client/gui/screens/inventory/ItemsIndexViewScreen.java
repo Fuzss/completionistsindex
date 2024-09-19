@@ -9,8 +9,8 @@ import java.util.List;
 public class ItemsIndexViewScreen extends IndexViewScreen {
     private final List<ItemStack> items;
 
-    public ItemsIndexViewScreen(Screen lastScreen, List<ItemStack> items) {
-        super(lastScreen);
+    public ItemsIndexViewScreen(Screen lastScreen, boolean fromInventory, List<ItemStack> items) {
+        super(lastScreen, fromInventory);
         this.items = items;
     }
 

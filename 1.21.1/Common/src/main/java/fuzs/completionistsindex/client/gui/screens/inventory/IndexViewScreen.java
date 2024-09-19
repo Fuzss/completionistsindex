@@ -6,7 +6,6 @@ import com.mojang.blaze3d.platform.InputConstants;
 import com.mojang.blaze3d.systems.RenderSystem;
 import fuzs.completionistsindex.CompletionistsIndex;
 import fuzs.puzzleslib.api.client.gui.v2.components.SpritelessImageButton;
-import fuzs.puzzleslib.api.client.gui.v2.screen.ScreenHelper;
 import fuzs.puzzleslib.api.core.v1.ModContainer;
 import fuzs.puzzleslib.api.core.v1.ModLoaderEnvironment;
 import net.minecraft.ChatFormatting;
@@ -26,6 +25,7 @@ import net.minecraft.resources.ResourceLocation;
 import net.minecraft.sounds.SoundEvents;
 import net.minecraft.stats.Stats;
 import net.minecraft.stats.StatsCounter;
+import net.minecraft.world.item.Item;
 import net.minecraft.world.item.ItemStack;
 import net.minecraft.world.item.TooltipFlag;
 import org.jetbrains.annotations.Nullable;
@@ -33,12 +33,12 @@ import org.jetbrains.annotations.Nullable;
 import java.text.DecimalFormat;
 import java.util.*;
 
-public abstract class IndexViewScreen extends Screen {
+public abstract class IndexViewScreen extends StatsUpdateListener {
    public static final ResourceLocation INDEX_LOCATION = CompletionistsIndex.id("textures/gui/index.png");
    private static final MutableComponent PREVIOUS_PAGE_COMPONENT = Component.translatable("createWorld.customize.custom.prev");
    private static final MutableComponent NEXT_PAGE_COMPONENT = Component.translatable("createWorld.customize.custom.next");
 
-   protected final Screen lastScreen;
+   private final boolean fromInventory;
    protected int leftPos;
    protected int topPos;
    private Button turnPageBackwards;
@@ -51,9 +51,9 @@ public abstract class IndexViewScreen extends Screen {
    @Nullable
    private List<Component> tooltipLines;
 
-   protected IndexViewScreen(Screen lastScreen) {
-      super(Component.translatable("gui.stats"));
-      this.lastScreen = lastScreen;
+   protected IndexViewScreen(Screen lastScreen, boolean fromInventory) {
+      super(lastScreen);
+       this.fromInventory = fromInventory;
    }
 
    public Comparator<IndexViewPage.Entry> getComparator() {
@@ -92,7 +92,11 @@ public abstract class IndexViewScreen extends Screen {
 
    @Override
    public void renderBackground(GuiGraphics guiGraphics, int mouseX, int mouseY, float partialTick) {
-      super.renderBackground(guiGraphics, mouseX, mouseY, partialTick);
+      if (this.fromInventory) {
+         this.renderTransparentBackground(guiGraphics);
+      } else {
+          super.renderBackground(guiGraphics, mouseX, mouseY, partialTick);
+      }
       RenderSystem.setShaderColor(1.0F, 1.0F, 1.0F, 1.0F);
       guiGraphics.blit(INDEX_LOCATION, this.leftPos, this.topPos, 0, 0, 316, 198, 512, 256);
       guiGraphics.drawString(this.font, this.leftPageIndicator, this.leftPos + 82 - this.font.width(this.leftPageIndicator) / 2, this.topPos + 13, 0xB8A48A, false);
@@ -166,11 +170,6 @@ public abstract class IndexViewScreen extends Screen {
       }
    }
 
-   @Override
-   public void onClose() {
-      this.minecraft.setScreen(this.lastScreen);
-   }
-
    public static class IndexViewPage implements Renderable {
       private static final DecimalFormat PERCENTAGE_FORMAT = new DecimalFormat("#.##");
 
@@ -213,8 +212,7 @@ public abstract class IndexViewScreen extends Screen {
             if (entry == null) break;
             int mouseXOffset = mouseX - startX;
             int mouseYOffset = mouseY - startY - i % 7 * 21;
-            Minecraft minecraft = ScreenHelper.INSTANCE.getMinecraft(this.screen);
-            entry.render(minecraft, guiGraphics, mouseXOffset, mouseYOffset, partialTick);
+             entry.render(this.screen.minecraft, guiGraphics, mouseXOffset, mouseYOffset, partialTick);
             if (entry.tryRenderTooltip(guiGraphics, mouseXOffset, mouseYOffset)) {
                this.screen.tooltipLines = entry.getTooltipLines();
             }
@@ -269,22 +267,22 @@ public abstract class IndexViewScreen extends Screen {
          return joiner.toString();
       }
 
-      public static Entry statsItemEntry(ItemStack stack, StatsCounter statsCounter, Font font) {
-         int pickedUp = statsCounter.getValue(Stats.ITEM_PICKED_UP, stack.getItem());
-         int crafted = statsCounter.getValue(Stats.ITEM_CRAFTED, stack.getItem());
+      public static Entry statsItemEntry(ItemStack itemStack, StatsCounter statsCounter, Font font) {
+         int pickedUp = statsCounter.getValue(Stats.ITEM_PICKED_UP, itemStack.getItem());
+         int crafted = statsCounter.getValue(Stats.ITEM_CRAFTED, itemStack.getItem());
          boolean collected = pickedUp > 0 || crafted > 0;
-         Component displayName = stack.getItem().getName(stack);
+         Component displayName = itemStack.getItem().getName(itemStack);
          FormattedText formattedName = formatDisplayName(font, displayName, collected);
          List<Component> lines = Lists.newArrayList();
-         lines.add(Component.empty().append(stack.getItem().getName(stack)).withStyle(stack.getRarity().color));
-         stack.getItem().appendHoverText(stack, null, lines, TooltipFlag.NORMAL);
+         lines.add(Component.empty().append(itemStack.getItem().getName(itemStack)).withStyle(itemStack.getRarity().color()));
+         itemStack.getItem().appendHoverText(itemStack, Item.TooltipContext.EMPTY, lines, TooltipFlag.NORMAL);
          if (pickedUp > 0) {
             lines.add(Component.literal(String.valueOf(pickedUp)).append(" ").append(Component.translatable("stat_type.minecraft.picked_up")).withStyle(ChatFormatting.BLUE));
          }
          if (crafted > 0) {
             lines.add(Component.literal(String.valueOf(crafted)).append(" ").append(Component.translatable("stat_type.minecraft.crafted")).withStyle(ChatFormatting.BLUE));
          }
-         return new StatsItemEntry(stack, formattedName, collected, ImmutableList.copyOf(lines));
+         return new StatsItemEntry(itemStack, formattedName, collected, ImmutableList.copyOf(lines));
       }
 
       private static FormattedText formatDisplayName(Font font, Component displayName, boolean collected) {
@@ -421,9 +419,8 @@ public abstract class IndexViewScreen extends Screen {
 
          @Override
          public boolean mouseClicked(Screen screen, int mouseX, int mouseY, int buttonId) {
-            Minecraft minecraft = ScreenHelper.INSTANCE.getMinecraft(screen);
-            minecraft.setScreen(new ItemsIndexViewScreen(screen, this.items));
-            minecraft.getSoundManager().play(SimpleSoundInstance.forUI(SoundEvents.UI_BUTTON_CLICK, 1.0F));
+            screen.minecraft.setScreen(new ItemsIndexViewScreen(screen, ((IndexViewScreen) screen).fromInventory, this.items));
+            screen.minecraft.getSoundManager().play(SimpleSoundInstance.forUI(SoundEvents.UI_BUTTON_CLICK, 1.0F));
             return true;
          }
       }
