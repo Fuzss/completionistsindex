@@ -6,7 +6,7 @@ import net.minecraft.network.chat.Component;
 
 import java.util.Comparator;
 
-public enum StatsSorting {
+public enum StatsSorting implements SortProvider<StatsSorting> {
     CREATIVE("creative"),
     ALPHABETICALLY("alphabetically"),
     COLLECTED("collected");
@@ -19,14 +19,17 @@ public enum StatsSorting {
         this.component = Component.translatable(CompletionistsIndex.MOD_ID + ".gui.index.sorting." + translationKey);
     }
 
+    @Override
     public Component getComponent() {
         return this.component;
     }
 
+    @Override
     public StatsSorting cycle() {
         return VALUES[(this.ordinal() + 1) % VALUES.length];
     }
 
+    @Override
     public Comparator<IndexViewScreen.IndexViewPage.Entry> getComparator() {
         return switch (this) {
             case CREATIVE -> Ordering.allEqual()::compare;

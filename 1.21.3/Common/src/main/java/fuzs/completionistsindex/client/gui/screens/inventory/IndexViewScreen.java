@@ -2,8 +2,6 @@ package fuzs.completionistsindex.client.gui.screens.inventory;
 
 import com.google.common.collect.ImmutableList;
 import com.google.common.collect.Lists;
-import com.mojang.blaze3d.platform.InputConstants;
-import com.mojang.blaze3d.systems.RenderSystem;
 import fuzs.completionistsindex.CompletionistsIndex;
 import fuzs.puzzleslib.api.client.gui.v2.components.SpritelessImageButton;
 import fuzs.puzzleslib.api.util.v1.ComponentHelper;
@@ -13,14 +11,16 @@ import net.minecraft.client.Minecraft;
 import net.minecraft.client.gui.Font;
 import net.minecraft.client.gui.GuiGraphics;
 import net.minecraft.client.gui.components.Button;
+import net.minecraft.client.gui.components.EditBox;
 import net.minecraft.client.gui.components.Renderable;
 import net.minecraft.client.gui.components.Tooltip;
+import net.minecraft.client.gui.navigation.ScreenAxis;
+import net.minecraft.client.gui.navigation.ScreenRectangle;
 import net.minecraft.client.gui.screens.Screen;
 import net.minecraft.client.renderer.MultiBufferSource;
 import net.minecraft.client.renderer.RenderType;
 import net.minecraft.client.resources.sounds.SimpleSoundInstance;
 import net.minecraft.core.registries.BuiltInRegistries;
-import net.minecraft.locale.Language;
 import net.minecraft.network.chat.*;
 import net.minecraft.resources.ResourceLocation;
 import net.minecraft.sounds.SoundEvents;
@@ -28,6 +28,7 @@ import net.minecraft.stats.Stats;
 import net.minecraft.stats.StatsCounter;
 import net.minecraft.util.FormattedCharSequence;
 import net.minecraft.util.Mth;
+import net.minecraft.util.RandomSource;
 import net.minecraft.world.item.Item;
 import net.minecraft.world.item.ItemStack;
 import net.minecraft.world.item.TooltipFlag;
@@ -36,16 +37,22 @@ import org.jetbrains.annotations.Nullable;
 import java.text.DecimalFormat;
 import java.util.Collections;
 import java.util.List;
+import java.util.Locale;
 import java.util.Optional;
+import java.util.stream.Stream;
 
-public abstract class IndexViewScreen extends StatsUpdateListener {
+public abstract class IndexViewScreen<T extends SortProvider<T>> extends StatsUpdateListener {
     public static final ResourceLocation INDEX_LOCATION = CompletionistsIndex.id("textures/gui/index.png");
-    private static final MutableComponent PREVIOUS_PAGE_COMPONENT = Component.translatable("spectatorMenu.previous_page");
-    private static final MutableComponent NEXT_PAGE_COMPONENT = Component.translatable("spectatorMenu.next_page");
+    private static final Component PREVIOUS_PAGE_COMPONENT = Component.translatable("spectatorMenu.previous_page");
+    private static final Component NEXT_PAGE_COMPONENT = Component.translatable("spectatorMenu.next_page");
+    private static final Component SEARCH_HINT = Component.translatable("gui.recipebook.search_hint")
+            .withStyle(ChatFormatting.ITALIC)
+            .withStyle(ChatFormatting.GRAY);
     private static final ResourceLocation SLOT_HIGHLIGHT_BACK_SPRITE = ResourceLocation.withDefaultNamespace(
             "container/slot_highlight_back");
     private static final ResourceLocation SLOT_HIGHLIGHT_FRONT_SPRITE = ResourceLocation.withDefaultNamespace(
             "container/slot_highlight_front");
+    private static final RandomSource RANDOM = RandomSource.create();
 
     private final boolean fromInventory;
     protected int leftPos;
@@ -58,16 +65,27 @@ public abstract class IndexViewScreen extends StatsUpdateListener {
     private List<IndexViewPage> pages;
     @Nullable
     private List<Component> tooltipLines;
+    @Nullable
+    private EditBox searchBox;
+    private String lastSearch = "";
+    private boolean ignoreTextInput;
+    @Nullable
+    private ScreenRectangle magnifierIconPlacement;
+    private long randomSeed;
 
     protected IndexViewScreen(Screen lastScreen, boolean fromInventory) {
         super(lastScreen);
         this.fromInventory = fromInventory;
     }
 
-    protected abstract List<IndexViewPage.Entry> getPageEntries();
+    protected abstract Stream<IndexViewPage.Entry> getPageEntries();
 
     protected void rebuildPages() {
-        this.pages = IndexViewPage.createPages(this, this.getPageEntries());
+        RANDOM.setSeed(this.randomSeed);
+        List<IndexViewPage.Entry> entries = this.getPageEntries().filter((IndexViewPage.Entry entry) -> {
+            return entry.getString().toLowerCase(Locale.ROOT).contains(this.getSearchQuery());
+        }).sorted(this.getSortProvider().getComparator()).toList();
+        this.pages = IndexViewPage.createPages(this, entries);
         this.setCurrentPage(0);
     }
 
@@ -75,19 +93,35 @@ public abstract class IndexViewScreen extends StatsUpdateListener {
     protected void init() {
         this.leftPos = (this.width - 316) / 2;
         this.topPos = (this.height - 198) / 2;
-        this.addRenderableWidget(new SpritelessImageButton(this.leftPos + 17,
-                this.topPos + 11,
+        this.randomSeed = RANDOM.nextLong();
+        this.magnifierIconPlacement = ScreenRectangle.of(ScreenAxis.HORIZONTAL,
+                this.leftPos + (316 / 2 - 146) / 2 + 18,
+                this.topPos - 23 + 5,
                 16,
-                13,
-                42,
-                202,
-                20,
+                16);
+        this.searchBox = new EditBox(this.minecraft.font,
+                this.leftPos + (316 / 2 - 146) / 2 + 43,
+                this.topPos - 23 + 6,
+                81,
+                this.font.lineHeight + 5,
+                Component.translatable("itemGroup.search"));
+        this.searchBox.setMaxLength(50);
+        this.searchBox.setVisible(true);
+        this.searchBox.setTextColor(0xFFFFFF);
+        this.searchBox.setHint(SEARCH_HINT);
+        this.addRenderableWidget(new SpritelessImageButton(this.leftPos + 316 - 6 - 26 + 5,
+                this.topPos - 23 + 5,
+                16,
+                16,
+                316 + 5,
+                45 + 5,
+                16 + 7,
                 INDEX_LOCATION,
                 512,
                 256,
                 button -> {
                     this.onClose();
-                })).setTooltip(Tooltip.create(CommonComponents.GUI_BACK));
+                }));
         this.addRenderableWidget(new SpritelessImageButton(this.leftPos + 316 - 17 - 16,
                 this.topPos + 11,
                 16,
@@ -99,10 +133,10 @@ public abstract class IndexViewScreen extends StatsUpdateListener {
                 512,
                 256,
                 button -> {
-                    this.cyclePageContents();
-                    button.setTooltip(Tooltip.create(this.getTooltipComponent()));
+                    this.setSortProvider(this.getSortProvider().cycle());
+                    button.setTooltip(Tooltip.create(this.getSortProvider().getComponent()));
                     this.rebuildPages();
-                })).setTooltip(Tooltip.create(this.getTooltipComponent()));
+                })).setTooltip(Tooltip.create(this.getSortProvider().getComponent()));
         this.turnPageBackwards = this.addRenderableWidget(new SpritelessImageButton(this.leftPos + 27,
                 this.topPos + 173,
                 18,
@@ -134,9 +168,23 @@ public abstract class IndexViewScreen extends StatsUpdateListener {
         this.setCurrentPage(this.currentPage);
     }
 
-    protected abstract void cyclePageContents();
+    @Override
+    public void resize(Minecraft minecraft, int width, int height) {
+        String string = this.searchBox.getValue();
+        super.resize(minecraft, width, height);
+        this.searchBox.setValue(string);
+    }
 
-    protected abstract Component getTooltipComponent();
+    @Override
+    public void removed() {
+        super.removed();
+        this.searchBox.setValue("");
+        this.lastSearch = "";
+    }
+
+    protected abstract T getSortProvider();
+
+    protected abstract void setSortProvider(T sortProvider);
 
     @Override
     public void renderBackground(GuiGraphics guiGraphics, int mouseX, int mouseY, float partialTick) {
@@ -145,7 +193,26 @@ public abstract class IndexViewScreen extends StatsUpdateListener {
         } else {
             super.renderBackground(guiGraphics, mouseX, mouseY, partialTick);
         }
-        RenderSystem.setShaderColor(1.0F, 1.0F, 1.0F, 1.0F);
+        guiGraphics.blit(RenderType::guiTextured,
+                INDEX_LOCATION,
+                this.leftPos + (316 / 2 - 146) / 2,
+                this.topPos - 23,
+                316,
+                22,
+                146,
+                23,
+                512,
+                256);
+        guiGraphics.blit(RenderType::guiTextured,
+                INDEX_LOCATION,
+                this.leftPos + 316 - 6 - 26,
+                this.topPos - 23,
+                316,
+                45,
+                26,
+                23,
+                512,
+                256);
         guiGraphics.blit(RenderType::guiTextured, INDEX_LOCATION, this.leftPos, this.topPos, 0, 0, 316, 198, 512, 256);
         guiGraphics.drawString(this.font,
                 this.leftPageIndicator,
@@ -162,12 +229,13 @@ public abstract class IndexViewScreen extends StatsUpdateListener {
     }
 
     @Override
-    public void render(GuiGraphics guiGraphics, int mouseX, int mouseY, float tickDelta) {
+    public void render(GuiGraphics guiGraphics, int mouseX, int mouseY, float partialTick) {
         this.tooltipLines = null;
         this.setFocused(null);
-        super.render(guiGraphics, mouseX, mouseY, tickDelta);
+        super.render(guiGraphics, mouseX, mouseY, partialTick);
+        this.searchBox.render(guiGraphics, mouseX, mouseY, partialTick);
         if (this.pages != null && !this.pages.isEmpty()) {
-            this.pages.get(this.currentPage).render(guiGraphics, mouseX, mouseY, tickDelta);
+            this.pages.get(this.currentPage).render(guiGraphics, mouseX, mouseY, partialTick);
         }
         if (this.tooltipLines != null) {
             guiGraphics.renderTooltip(this.font, this.tooltipLines, Optional.empty(), mouseX, mouseY);
@@ -175,11 +243,23 @@ public abstract class IndexViewScreen extends StatsUpdateListener {
     }
 
     @Override
-    public boolean mouseClicked(double mouseX, double mouseY, int buttonId) {
-        if (!super.mouseClicked(mouseX, mouseY, buttonId) && this.pages != null && !this.pages.isEmpty()) {
-            return this.pages.get(this.currentPage).mouseClicked((int) mouseX, (int) mouseY, buttonId);
+    public boolean mouseClicked(double mouseX, double mouseY, int button) {
+        this.searchBox.setFocused(false);
+        if (super.mouseClicked(mouseX, mouseY, button)) {
+            return true;
+        } else if (this.pages != null && !this.pages.isEmpty() &&
+                this.pages.get(this.currentPage).mouseClicked((int) mouseX, (int) mouseY, button)) {
+            return true;
+        } else {
+            boolean mouseClickedOnMagnifier = this.magnifierIconPlacement != null &&
+                    this.magnifierIconPlacement.containsPoint(Mth.floor(mouseX), Mth.floor(mouseY));
+            if (mouseClickedOnMagnifier || this.searchBox.mouseClicked(mouseX, mouseY, button)) {
+                this.searchBox.setFocused(true);
+                return true;
+            } else {
+                return false;
+            }
         }
-        return false;
     }
 
     private void decrementPage() {
@@ -218,13 +298,46 @@ public abstract class IndexViewScreen extends StatsUpdateListener {
 
     @Override
     public boolean keyPressed(int keyCode, int scanCode, int modifiers) {
-        if (super.keyPressed(keyCode, scanCode, modifiers)) {
+        this.ignoreTextInput = false;
+        if (this.searchBox.keyPressed(keyCode, scanCode, modifiers)) {
+            this.checkSearchStringUpdate();
             return true;
-        } else if (keyCode == InputConstants.KEY_BACKSPACE && this.shouldCloseOnEsc()) {
-            this.onClose();
+        } else if (this.minecraft.options.keyChat.matches(keyCode, scanCode) && !this.searchBox.isFocused()) {
+            this.ignoreTextInput = true;
+            this.searchBox.setFocused(true);
             return true;
         } else {
+            return super.keyPressed(keyCode, scanCode, modifiers);
+        }
+    }
+
+    @Override
+    public boolean keyReleased(int keyCode, int scanCode, int modifiers) {
+        this.ignoreTextInput = false;
+        return super.keyReleased(keyCode, scanCode, modifiers);
+    }
+
+    @Override
+    public boolean charTyped(char codePoint, int modifiers) {
+        if (this.ignoreTextInput) {
             return false;
+        } else if (this.searchBox.charTyped(codePoint, modifiers)) {
+            this.checkSearchStringUpdate();
+            return true;
+        } else {
+            return super.charTyped(codePoint, modifiers);
+        }
+    }
+
+    private String getSearchQuery() {
+        return this.searchBox != null ? this.searchBox.getValue().trim().toLowerCase(Locale.ROOT) : "";
+    }
+
+    private void checkSearchStringUpdate() {
+        String string = this.getSearchQuery();
+        if (!string.equals(this.lastSearch)) {
+            this.rebuildPages();
+            this.lastSearch = string;
         }
     }
 
@@ -232,13 +345,13 @@ public abstract class IndexViewScreen extends StatsUpdateListener {
         private static final DecimalFormat PERCENTAGE_FORMAT = new DecimalFormat("#.##");
 
         private final Entry[] entries = new Entry[14];
-        private final IndexViewScreen screen;
+        private final IndexViewScreen<?> screen;
 
-        private IndexViewPage(IndexViewScreen screen) {
+        private IndexViewPage(IndexViewScreen<?> screen) {
             this.screen = screen;
         }
 
-        public static List<IndexViewPage> createPages(IndexViewScreen screen, List<Entry> entries) {
+        public static List<IndexViewPage> createPages(IndexViewScreen<?> screen, List<Entry> entries) {
             ImmutableList.Builder<IndexViewPage> builder = ImmutableList.builder();
             IndexViewPage page = null;
             int itemsCount = 0;
@@ -331,7 +444,7 @@ public abstract class IndexViewScreen extends StatsUpdateListener {
 
         public static Entry createGroupEntry(Component modName, List<ItemStack> items, StatsCounter statsCounter, Font font) {
             if (items.isEmpty()) throw new IllegalArgumentException("items must not be empty");
-            ItemStack displayItem = items.stream().skip((int) (Math.random() * items.size())).findAny().orElseThrow();
+            ItemStack displayItem = items.get(RANDOM.nextInt(items.size()));
             long collectedCount = items.stream().filter((ItemStack stack) -> {
                 int pickedUp = statsCounter.getValue(Stats.ITEM_PICKED_UP, stack.getItem());
                 int crafted = statsCounter.getValue(Stats.ITEM_CRAFTED, stack.getItem());
@@ -408,6 +521,10 @@ public abstract class IndexViewScreen extends StatsUpdateListener {
             }
 
             public abstract <T extends Comparable<? super T>> T toComparableKey();
+
+            public String getString() {
+                return this.displayName.getString();
+            }
 
             public boolean isCollected() {
                 return this.collected;
@@ -581,7 +698,7 @@ public abstract class IndexViewScreen extends StatsUpdateListener {
                 super.renderForeground(minecraft, guiGraphics, mouseX, mouseY, partialTick, posX, posY);
                 Font font = minecraft.font;
                 guiGraphics.drawString(font,
-                        Language.getInstance().getVisualOrder(this.displayName),
+                        this.displayName,
                         posX + 70 - font.width(this.displayName) / 2,
                         posY,
                         0,
@@ -601,7 +718,7 @@ public abstract class IndexViewScreen extends StatsUpdateListener {
             @Override
             public boolean mouseClicked(Screen screen, int mouseX, int mouseY, int buttonId) {
                 screen.minecraft.setScreen(new ItemsIndexViewScreen(screen,
-                        ((IndexViewScreen) screen).fromInventory,
+                        ((IndexViewScreen<?>) screen).fromInventory,
                         this.items));
                 screen.minecraft.getSoundManager().play(SimpleSoundInstance.forUI(SoundEvents.UI_BUTTON_CLICK, 1.0F));
                 return true;

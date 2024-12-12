@@ -18,6 +18,11 @@ public class ClientConfig implements ConfigCore {
     @Config(description = "Choose which screens to add the Completionist's Index button to.")
     public IndexButtonScreen indexButtonScreen = IndexButtonScreen.PAUSE_MENU;
     @Config(
+            name = "indexed_items",
+            description = "A list for overriding all items in the index, no other items are included."
+    )
+    List<String> indexedItemsRaw = KeyedValueProvider.tagAppender(Registries.ITEM).asStringList();
+    @Config(
             name = "unobtainable_items", description = {
             "Add items to this list that should be excluded from the index, intended for creative-only items such as spawn eggs.",
             ConfigDataSet.CONFIG_DESCRIPTION
@@ -63,13 +68,23 @@ public class ClientConfig implements ConfigCore {
             .add(CreativeModeTabs.OP_BLOCKS)
             .asStringList();
 
+    public ConfigDataSet<Item> indexedItems;
     public ConfigDataSet<Item> unobtainableItems;
     public ConfigDataSet<CreativeModeTab> hiddenCreativeTabs;
 
     @Override
     public void afterConfigReload() {
+        this.indexedItems = ConfigDataSet.from(Registries.ITEM, this.indexedItemsRaw);
         this.unobtainableItems = ConfigDataSet.from(Registries.ITEM, this.unobtainableItemsRaw);
         this.hiddenCreativeTabs = ConfigDataSet.from(Registries.CREATIVE_MODE_TAB, this.hiddenCreativeTabsRaw);
+    }
+
+    public boolean filterItems(Item item) {
+        if (this.indexedItems.isEmpty() || this.indexedItems.contains(item)) {
+            return !this.unobtainableItems.contains(item);
+        } else {
+            return false;
+        }
     }
 
     public enum IndexButtonScreen {

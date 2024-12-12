@@ -13,8 +13,9 @@ import java.util.Collections;
 import java.util.EnumMap;
 import java.util.List;
 import java.util.Map;
+import java.util.stream.Stream;
 
-public class ModsIndexViewScreen extends IndexViewScreen {
+public class ModsIndexViewScreen extends IndexViewScreen<IndexGroup> {
     private static final Component PENDING_TEXT = Component.translatable("multiplayer.downloadingStats");
     private static final String[] LOADING_SYMBOLS = new String[]{
             "oooooo", "Oooooo", "oOoooo", "ooOooo", "oooOoo", "ooooOo", "oooooO"
@@ -44,7 +45,7 @@ public class ModsIndexViewScreen extends IndexViewScreen {
     }
 
     @Override
-    protected List<IndexViewPage.Entry> getPageEntries() {
+    protected Stream<IndexViewPage.Entry> getPageEntries() {
         StatsCounter statsCounter = this.minecraft.player.getStats();
         return this.items.getOrDefault(indexGroup, Collections.emptyMap())
                 .entrySet()
@@ -54,9 +55,7 @@ public class ModsIndexViewScreen extends IndexViewScreen {
                             entry.getValue(),
                             statsCounter,
                             this.font);
-                })
-                .sorted(indexGroup.getComparator())
-                .toList();
+                });
     }
 
     @Override
@@ -76,24 +75,24 @@ public class ModsIndexViewScreen extends IndexViewScreen {
     }
 
     @Override
-    protected void cyclePageContents() {
-        indexGroup = indexGroup.cycle();
+    protected IndexGroup getSortProvider() {
+        return indexGroup;
     }
 
     @Override
-    protected Component getTooltipComponent() {
-        return indexGroup.getComponent();
+    protected void setSortProvider(IndexGroup sortProvider) {
+        indexGroup = sortProvider;
     }
 
     @Override
-    public void render(GuiGraphics guiGraphics, int mouseX, int mouseY, float tickDelta) {
-        super.render(guiGraphics, mouseX, mouseY, tickDelta);
+    public void render(GuiGraphics guiGraphics, int mouseX, int mouseY, float partialTick) {
+        super.render(guiGraphics, mouseX, mouseY, partialTick);
         if (this.isLoading) {
             guiGraphics.drawString(this.font,
                     PENDING_TEXT,
                     (this.width - this.font.width(PENDING_TEXT)) / 2,
                     this.topPos + 198 / 2 - 9 * 2,
-                    0x000000,
+                    0,
                     false);
             Component component = Component.literal(LOADING_SYMBOLS[(int) (Util.getMillis() / 150L %
                     (long) LOADING_SYMBOLS.length)]);
@@ -101,7 +100,7 @@ public class ModsIndexViewScreen extends IndexViewScreen {
                     component,
                     (this.width - this.font.width(component)) / 2,
                     this.topPos + 198 / 2,
-                    0x000000,
+                    0,
                     false);
         }
     }

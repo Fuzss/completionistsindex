@@ -13,10 +13,9 @@ import net.minecraft.world.item.CreativeModeTabs;
 import net.minecraft.world.item.ItemStack;
 
 import java.util.*;
-import java.util.function.Predicate;
 import java.util.stream.Collectors;
 
-public enum IndexGroup {
+public enum IndexGroup implements SortProvider<IndexGroup> {
     CREATIVE {
         @Override
         SequencedMap<Component, List<ItemStack>> getGroups(List<ItemStack> allItems) {
@@ -52,14 +51,17 @@ public enum IndexGroup {
                 CompletionistsIndex.MOD_ID + ".gui.index.group." + this.name().toLowerCase(Locale.ROOT));
     }
 
+    @Override
     public IndexGroup cycle() {
         return VALUES[(this.ordinal() + 1) % VALUES.length];
     }
 
+    @Override
     public Component getComponent() {
         return this.component;
     }
 
+    @Override
     public Comparator<IndexViewScreen.IndexViewPage.Entry> getComparator() {
         return switch (this) {
             case CREATIVE -> Ordering.allEqual()::compare;
@@ -84,7 +86,7 @@ public enum IndexGroup {
                 .stream()
                 .map(ItemStack::getItem)
                 .distinct()
-                .filter(Predicate.not(CompletionistsIndex.CONFIG.get(ClientConfig.class).unobtainableItems::contains))
+                .filter(CompletionistsIndex.CONFIG.get(ClientConfig.class)::filterItems)
                 .map(ItemStack::new)
                 .toList();
     }
