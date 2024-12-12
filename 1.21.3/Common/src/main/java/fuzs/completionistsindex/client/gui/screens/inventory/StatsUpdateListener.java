@@ -6,6 +6,10 @@ import net.minecraft.client.gui.screens.achievement.StatsScreen;
 import net.minecraft.stats.StatsCounter;
 import org.jetbrains.annotations.Nullable;
 
+/**
+ * An implementation similar to vanilla's old {@code StatsUpdateListener} interface, whose functionality is now
+ * restricted to instances of {@link StatsScreen}.
+ */
 public abstract class StatsUpdateListener extends StatsScreen {
 
     public StatsUpdateListener(Screen lastScreen) {

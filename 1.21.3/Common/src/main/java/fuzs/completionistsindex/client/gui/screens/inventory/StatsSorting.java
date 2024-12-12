@@ -1,17 +1,22 @@
 package fuzs.completionistsindex.client.gui.screens.inventory;
 
 import com.google.common.collect.Ordering;
+import fuzs.completionistsindex.CompletionistsIndex;
 import net.minecraft.network.chat.Component;
 
 import java.util.Comparator;
 
 public enum StatsSorting {
-    CREATIVE("creative"), ALPHABETICALLY("alphabetically"), COLLECTED("collected");
+    CREATIVE("creative"),
+    ALPHABETICALLY("alphabetically"),
+    COLLECTED("collected");
+
+    private static final StatsSorting[] VALUES = StatsSorting.values();
 
     private final Component component;
 
     StatsSorting(String translationKey) {
-        this.component = Component.translatable("completionistsindex.gui.index.sorting." + translationKey);
+        this.component = Component.translatable(CompletionistsIndex.MOD_ID + ".gui.index.sorting." + translationKey);
     }
 
     public Component getComponent() {
@@ -19,15 +24,16 @@ public enum StatsSorting {
     }
 
     public StatsSorting cycle() {
-        StatsSorting[] values = StatsSorting.values();
-        return values[(this.ordinal() + 1) % values.length];
+        return VALUES[(this.ordinal() + 1) % VALUES.length];
     }
 
     public Comparator<IndexViewScreen.IndexViewPage.Entry> getComparator() {
         return switch (this) {
             case CREATIVE -> Ordering.allEqual()::compare;
             case ALPHABETICALLY -> Comparator.comparing(IndexViewScreen.IndexViewPage.Entry::toComparableKey);
-            case COLLECTED -> Comparator.comparing(IndexViewScreen.IndexViewPage.Entry::isCollected).reversed().thenComparing(IndexViewScreen.IndexViewPage.Entry::toComparableKey);
+            case COLLECTED -> Comparator.comparing(IndexViewScreen.IndexViewPage.Entry::isCollected)
+                    .reversed()
+                    .thenComparing(IndexViewScreen.IndexViewPage.Entry::toComparableKey);
         };
     }
 }
