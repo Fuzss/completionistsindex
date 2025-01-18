@@ -166,19 +166,10 @@ public abstract class IndexViewScreen<T extends SortProvider<T>> extends StatsUp
                 }));
         this.turnPageForwards.setTooltip(Tooltip.create(NEXT_PAGE_COMPONENT));
         this.setCurrentPage(this.currentPage);
+        this.resetLastSearch();
     }
 
-    @Override
-    public void resize(Minecraft minecraft, int width, int height) {
-        String string = this.searchBox.getValue();
-        super.resize(minecraft, width, height);
-        this.searchBox.setValue(string);
-    }
-
-    @Override
-    public void removed() {
-        super.removed();
-        this.searchBox.setValue("");
+    private void resetLastSearch() {
         this.lastSearch = "";
     }
 
