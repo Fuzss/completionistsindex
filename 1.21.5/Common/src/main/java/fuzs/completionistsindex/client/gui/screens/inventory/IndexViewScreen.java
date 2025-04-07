@@ -1,7 +1,6 @@
 package fuzs.completionistsindex.client.gui.screens.inventory;
 
 import com.google.common.collect.ImmutableList;
-import com.google.common.collect.Lists;
 import fuzs.completionistsindex.CompletionistsIndex;
 import fuzs.puzzleslib.api.client.gui.v2.components.SpritelessImageButton;
 import fuzs.puzzleslib.api.util.v1.ComponentHelper;
@@ -20,6 +19,7 @@ import net.minecraft.client.gui.screens.Screen;
 import net.minecraft.client.renderer.MultiBufferSource;
 import net.minecraft.client.renderer.RenderType;
 import net.minecraft.client.resources.sounds.SimpleSoundInstance;
+import net.minecraft.core.component.DataComponents;
 import net.minecraft.core.registries.BuiltInRegistries;
 import net.minecraft.network.chat.*;
 import net.minecraft.resources.ResourceLocation;
@@ -32,13 +32,11 @@ import net.minecraft.util.RandomSource;
 import net.minecraft.world.item.Item;
 import net.minecraft.world.item.ItemStack;
 import net.minecraft.world.item.TooltipFlag;
+import net.minecraft.world.item.component.TooltipDisplay;
 import org.jetbrains.annotations.Nullable;
 
 import java.text.DecimalFormat;
-import java.util.Collections;
-import java.util.List;
-import java.util.Locale;
-import java.util.Optional;
+import java.util.*;
 import java.util.stream.Stream;
 
 public abstract class IndexViewScreen<T extends SortProvider<T>> extends StatsUpdateListener {
@@ -463,24 +461,30 @@ public abstract class IndexViewScreen<T extends SortProvider<T>> extends StatsUp
             boolean collected = pickedUp > 0 || crafted > 0;
             Component displayName = itemStack.getItem().getName(itemStack);
             Component formattedName = formatDisplayName(font, displayName, collected, true);
-            List<Component> lines = Lists.newArrayList();
-            lines.add(Component.empty()
+            List<Component> tooltipLines = new ArrayList<>();
+            tooltipLines.add(Component.empty()
                     .append(itemStack.getItem().getName(itemStack))
                     .withStyle(itemStack.getRarity().color()));
-            itemStack.getItem().appendHoverText(itemStack, Item.TooltipContext.EMPTY, lines, TooltipFlag.NORMAL);
+            TooltipDisplay tooltipDisplay = itemStack.getOrDefault(DataComponents.TOOLTIP_DISPLAY,
+                    TooltipDisplay.DEFAULT);
+            itemStack.addDetailsToTooltip(Item.TooltipContext.EMPTY,
+                    tooltipDisplay,
+                    null,
+                    TooltipFlag.NORMAL,
+                    tooltipLines::add);
             if (pickedUp > 0) {
-                lines.add(Component.literal(String.valueOf(pickedUp))
+                tooltipLines.add(Component.literal(String.valueOf(pickedUp))
                         .append(" ")
                         .append(Component.translatable("stat_type.minecraft.picked_up"))
                         .withStyle(ChatFormatting.BLUE));
             }
             if (crafted > 0) {
-                lines.add(Component.literal(String.valueOf(crafted))
+                tooltipLines.add(Component.literal(String.valueOf(crafted))
                         .append(" ")
                         .append(Component.translatable("stat_type.minecraft.crafted"))
                         .withStyle(ChatFormatting.BLUE));
             }
-            return new SingleEntry(itemStack, formattedName, collected, ImmutableList.copyOf(lines));
+            return new SingleEntry(itemStack, formattedName, collected, ImmutableList.copyOf(tooltipLines));
         }
 
         private static Component formatDisplayName(Font font, Component displayName, boolean collected, boolean fullLength) {
