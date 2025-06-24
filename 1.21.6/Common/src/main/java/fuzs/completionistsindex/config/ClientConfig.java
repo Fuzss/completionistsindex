@@ -65,7 +65,7 @@ public class ClientConfig implements ConfigCore {
     }
     )
     List<String> hiddenCreativeTabsRaw = KeyedValueProvider.tagAppender(Registries.CREATIVE_MODE_TAB)
-            .add(CreativeModeTabs.OP_BLOCKS)
+            .addKey(CreativeModeTabs.OP_BLOCKS)
             .asStringList();
 
     public ConfigDataSet<Item> indexedItems;

@@ -2,6 +2,7 @@ package fuzs.completionistsindex.client.gui.screens.inventory;
 
 import com.google.common.collect.ImmutableList;
 import fuzs.completionistsindex.CompletionistsIndex;
+import fuzs.puzzleslib.api.client.gui.v2.GuiGraphicsHelper;
 import fuzs.puzzleslib.api.client.gui.v2.components.SpritelessImageButton;
 import fuzs.puzzleslib.api.util.v1.ComponentHelper;
 import net.minecraft.ChatFormatting;
@@ -16,8 +17,7 @@ import net.minecraft.client.gui.components.Tooltip;
 import net.minecraft.client.gui.navigation.ScreenAxis;
 import net.minecraft.client.gui.navigation.ScreenRectangle;
 import net.minecraft.client.gui.screens.Screen;
-import net.minecraft.client.renderer.MultiBufferSource;
-import net.minecraft.client.renderer.RenderType;
+import net.minecraft.client.renderer.RenderPipelines;
 import net.minecraft.client.resources.sounds.SimpleSoundInstance;
 import net.minecraft.core.component.DataComponents;
 import net.minecraft.core.registries.BuiltInRegistries;
@@ -105,7 +105,7 @@ public abstract class IndexViewScreen<T extends SortProvider<T>> extends StatsUp
                 Component.translatable("itemGroup.search"));
         this.searchBox.setMaxLength(50);
         this.searchBox.setVisible(true);
-        this.searchBox.setTextColor(0xFFFFFF);
+        this.searchBox.setTextColor(-1);
         this.searchBox.setHint(SEARCH_HINT);
         this.addRenderableWidget(new SpritelessImageButton(this.leftPos + 316 - 6 - 26 + 5,
                 this.topPos - 23 + 5,
@@ -182,7 +182,7 @@ public abstract class IndexViewScreen<T extends SortProvider<T>> extends StatsUp
         } else {
             super.renderBackground(guiGraphics, mouseX, mouseY, partialTick);
         }
-        guiGraphics.blit(RenderType::guiTextured,
+        guiGraphics.blit(RenderPipelines.GUI_TEXTURED,
                 INDEX_LOCATION,
                 this.leftPos + (316 / 2 - 146) / 2,
                 this.topPos - 23,
@@ -192,7 +192,7 @@ public abstract class IndexViewScreen<T extends SortProvider<T>> extends StatsUp
                 23,
                 512,
                 256);
-        guiGraphics.blit(RenderType::guiTextured,
+        guiGraphics.blit(RenderPipelines.GUI_TEXTURED,
                 INDEX_LOCATION,
                 this.leftPos + 316 - 6 - 26,
                 this.topPos - 23,
@@ -202,18 +202,27 @@ public abstract class IndexViewScreen<T extends SortProvider<T>> extends StatsUp
                 23,
                 512,
                 256);
-        guiGraphics.blit(RenderType::guiTextured, INDEX_LOCATION, this.leftPos, this.topPos, 0, 0, 316, 198, 512, 256);
+        guiGraphics.blit(RenderPipelines.GUI_TEXTURED,
+                INDEX_LOCATION,
+                this.leftPos,
+                this.topPos,
+                0,
+                0,
+                316,
+                198,
+                512,
+                256);
         guiGraphics.drawString(this.font,
                 this.leftPageIndicator,
                 this.leftPos + 82 - this.font.width(this.leftPageIndicator) / 2,
                 this.topPos + 13,
-                0xB8A48A,
+                0xFFB8A48A,
                 false);
         guiGraphics.drawString(this.font,
                 this.rightPageIndicator,
                 this.leftPos + 233 - this.font.width(this.rightPageIndicator) / 2,
                 this.topPos + 13,
-                0xB8A48A,
+                0xFFB8A48A,
                 false);
     }
 
@@ -227,7 +236,7 @@ public abstract class IndexViewScreen<T extends SortProvider<T>> extends StatsUp
             this.pages.get(this.currentPage).render(guiGraphics, mouseX, mouseY, partialTick);
         }
         if (this.tooltipLines != null) {
-            guiGraphics.renderTooltip(this.font, this.tooltipLines, Optional.empty(), mouseX, mouseY);
+            guiGraphics.setTooltipForNextFrame(this.font, this.tooltipLines, Optional.empty(), mouseX, mouseY);
         }
     }
 
@@ -236,12 +245,13 @@ public abstract class IndexViewScreen<T extends SortProvider<T>> extends StatsUp
         this.searchBox.setFocused(false);
         if (super.mouseClicked(mouseX, mouseY, button)) {
             return true;
-        } else if (this.pages != null && !this.pages.isEmpty() &&
-                this.pages.get(this.currentPage).mouseClicked((int) mouseX, (int) mouseY, button)) {
+        } else if (this.pages != null && !this.pages.isEmpty() && this.pages.get(this.currentPage)
+                .mouseClicked((int) mouseX, (int) mouseY, button)) {
             return true;
         } else {
-            boolean mouseClickedOnMagnifier = this.magnifierIconPlacement != null &&
-                    this.magnifierIconPlacement.containsPoint(Mth.floor(mouseX), Mth.floor(mouseY));
+            boolean mouseClickedOnMagnifier =
+                    this.magnifierIconPlacement != null && this.magnifierIconPlacement.containsPoint(Mth.floor(mouseX),
+                            Mth.floor(mouseY));
             if (mouseClickedOnMagnifier || this.searchBox.mouseClicked(mouseX, mouseY, button)) {
                 this.searchBox.setFocused(true);
                 return true;
@@ -388,7 +398,7 @@ public abstract class IndexViewScreen<T extends SortProvider<T>> extends StatsUp
                     int mouseYOffset = mouseY - startY - i % 7 * 21;
                     boolean isHoveringSlot = entry.isHoveringSlot(mouseXOffset, mouseYOffset);
                     if (isHoveringSlot) {
-                        guiGraphics.blitSprite(RenderType::guiTextured,
+                        guiGraphics.blitSprite(RenderPipelines.GUI_TEXTURED,
                                 SLOT_HIGHLIGHT_BACK_SPRITE,
                                 posX + 1 - 4,
                                 posY + 1 - 4,
@@ -403,7 +413,7 @@ public abstract class IndexViewScreen<T extends SortProvider<T>> extends StatsUp
                             posX,
                             posY);
                     if (isHoveringSlot) {
-                        guiGraphics.blitSprite(RenderType::guiTexturedOverlay,
+                        guiGraphics.blitSprite(RenderPipelines.GUI_TEXTURED,
                                 SLOT_HIGHLIGHT_FRONT_SPRITE,
                                 posX + 1 - 4,
                                 posY + 1 - 4,
@@ -551,8 +561,8 @@ public abstract class IndexViewScreen<T extends SortProvider<T>> extends StatsUp
             }
 
             public void renderBackground(GuiGraphics guiGraphics, int mouseX, int mouseY, float partialTick, int posX, int posY) {
-                guiGraphics.blit(RenderType::guiTextured, INDEX_LOCATION, posX, posY, 120, 208, 18, 18, 512, 256);
-                guiGraphics.blit(RenderType::guiTextured,
+                guiGraphics.blit(RenderPipelines.GUI_TEXTURED, INDEX_LOCATION, posX, posY, 120, 208, 18, 18, 512, 256);
+                guiGraphics.blit(RenderPipelines.GUI_TEXTURED,
                         INDEX_LOCATION,
                         posX + 124,
                         posY + 4,
@@ -591,7 +601,7 @@ public abstract class IndexViewScreen<T extends SortProvider<T>> extends StatsUp
                         posY + 4,
                         posX + 23 + 95,
                         posY + 4 + minecraft.font.lineHeight,
-                        0);
+                        0xFF000000);
             }
 
             /**
@@ -654,7 +664,7 @@ public abstract class IndexViewScreen<T extends SortProvider<T>> extends StatsUp
             @Override
             public void renderBackground(GuiGraphics guiGraphics, int mouseX, int mouseY, float partialTick, int posX, int posY) {
                 super.renderBackground(guiGraphics, mouseX, mouseY, partialTick, posX, posY);
-                guiGraphics.blit(RenderType::guiTextured,
+                guiGraphics.blit(RenderPipelines.GUI_TEXTURED,
                         INDEX_LOCATION,
                         posX + 24,
                         posY + 11,
@@ -664,7 +674,7 @@ public abstract class IndexViewScreen<T extends SortProvider<T>> extends StatsUp
                         5,
                         512,
                         256);
-                guiGraphics.blit(RenderType::guiTextured,
+                guiGraphics.blit(RenderPipelines.GUI_TEXTURED,
                         INDEX_LOCATION,
                         posX + 24,
                         posY + 11,
@@ -675,7 +685,7 @@ public abstract class IndexViewScreen<T extends SortProvider<T>> extends StatsUp
                         512,
                         256);
                 if (this.isMouseOver(mouseX, mouseY)) {
-                    guiGraphics.blit(RenderType::guiTextured,
+                    guiGraphics.blit(RenderPipelines.GUI_TEXTURED,
                             INDEX_LOCATION,
                             posX - 2,
                             posY - 2,
@@ -696,18 +706,15 @@ public abstract class IndexViewScreen<T extends SortProvider<T>> extends StatsUp
                         this.displayName,
                         posX + 70 - font.width(this.displayName) / 2,
                         posY,
-                        0,
+                        0xFF000000,
                         false);
-                guiGraphics.drawSpecial((MultiBufferSource multiBufferSource) -> {
-                    font.drawInBatch8xOutline(this.collection.getVisualOrderText(),
-                            posX + 70 - font.width(this.collection) / 2,
-                            posY + 10,
-                            0xFFC700,
-                            0,
-                            guiGraphics.pose().last().pose(),
-                            multiBufferSource,
-                            0xF000F0);
-                });
+                GuiGraphicsHelper.drawInBatch8xOutline(guiGraphics,
+                        font,
+                        this.collection,
+                        posX + 70 - font.width(this.collection) / 2,
+                        posY + 10,
+                        0xFFFFC700,
+                        0xFF000000);
             }
 
             @Override
