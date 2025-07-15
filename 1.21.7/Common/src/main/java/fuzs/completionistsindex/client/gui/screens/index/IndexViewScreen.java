@@ -1,13 +1,11 @@
-package fuzs.completionistsindex.client.gui.screens.inventory;
+package fuzs.completionistsindex.client.gui.screens.index;
 
 import com.google.common.collect.ImmutableList;
 import fuzs.completionistsindex.CompletionistsIndex;
-import fuzs.puzzleslib.api.client.gui.v2.GuiGraphicsHelper;
+import fuzs.completionistsindex.client.gui.components.index.IndexViewEntry;
 import fuzs.puzzleslib.api.client.gui.v2.components.SpritelessImageButton;
 import fuzs.puzzleslib.api.util.v1.ComponentHelper;
 import net.minecraft.ChatFormatting;
-import net.minecraft.Util;
-import net.minecraft.client.Minecraft;
 import net.minecraft.client.gui.Font;
 import net.minecraft.client.gui.GuiGraphics;
 import net.minecraft.client.gui.components.Button;
@@ -18,25 +16,15 @@ import net.minecraft.client.gui.navigation.ScreenAxis;
 import net.minecraft.client.gui.navigation.ScreenRectangle;
 import net.minecraft.client.gui.screens.Screen;
 import net.minecraft.client.renderer.RenderPipelines;
-import net.minecraft.client.resources.sounds.SimpleSoundInstance;
-import net.minecraft.core.component.DataComponents;
-import net.minecraft.core.registries.BuiltInRegistries;
 import net.minecraft.network.chat.*;
 import net.minecraft.resources.ResourceLocation;
-import net.minecraft.sounds.SoundEvents;
-import net.minecraft.stats.Stats;
-import net.minecraft.stats.StatsCounter;
-import net.minecraft.util.FormattedCharSequence;
 import net.minecraft.util.Mth;
 import net.minecraft.util.RandomSource;
-import net.minecraft.world.item.Item;
-import net.minecraft.world.item.ItemStack;
-import net.minecraft.world.item.TooltipFlag;
-import net.minecraft.world.item.component.TooltipDisplay;
 import org.jetbrains.annotations.Nullable;
 
-import java.text.DecimalFormat;
-import java.util.*;
+import java.util.List;
+import java.util.Locale;
+import java.util.Optional;
 import java.util.stream.Stream;
 
 public abstract class IndexViewScreen<T extends SortProvider<T>> extends StatsUpdateListener {
@@ -50,7 +38,7 @@ public abstract class IndexViewScreen<T extends SortProvider<T>> extends StatsUp
             "container/slot_highlight_back");
     private static final ResourceLocation SLOT_HIGHLIGHT_FRONT_SPRITE = ResourceLocation.withDefaultNamespace(
             "container/slot_highlight_front");
-    private static final RandomSource RANDOM = RandomSource.create();
+    protected static final RandomSource RANDOM = RandomSource.create();
 
     private final boolean fromInventory;
     protected int leftPos;
@@ -71,16 +59,16 @@ public abstract class IndexViewScreen<T extends SortProvider<T>> extends StatsUp
     private ScreenRectangle magnifierIconPlacement;
     private long randomSeed;
 
-    protected IndexViewScreen(Screen lastScreen, boolean fromInventory) {
+    protected IndexViewScreen(@Nullable Screen lastScreen, boolean fromInventory) {
         super(lastScreen);
         this.fromInventory = fromInventory;
     }
 
-    protected abstract Stream<IndexViewPage.Entry> getPageEntries();
+    protected abstract Stream<IndexViewEntry> getPageEntries();
 
     protected void rebuildPages() {
         RANDOM.setSeed(this.randomSeed);
-        List<IndexViewPage.Entry> entries = this.getPageEntries().filter((IndexViewPage.Entry entry) -> {
+        List<IndexViewEntry> entries = this.getPageEntries().filter((IndexViewEntry entry) -> {
             return entry.getString().toLowerCase(Locale.ROOT).contains(this.getSearchQuery());
         }).sorted(this.getSortProvider().getComparator()).toList();
         this.pages = IndexViewPage.createPages(this, entries);
@@ -165,6 +153,10 @@ public abstract class IndexViewScreen<T extends SortProvider<T>> extends StatsUp
         this.turnPageForwards.setTooltip(Tooltip.create(NEXT_PAGE_COMPONENT));
         this.setCurrentPage(this.currentPage);
         this.resetLastSearch();
+    }
+
+    public boolean isFromInventory() {
+        return this.fromInventory;
     }
 
     private void resetLastSearch() {
@@ -340,21 +332,19 @@ public abstract class IndexViewScreen<T extends SortProvider<T>> extends StatsUp
         }
     }
 
-    public static class IndexViewPage implements Renderable {
-        private static final DecimalFormat PERCENTAGE_FORMAT = new DecimalFormat("#.##");
-
-        private final Entry[] entries = new Entry[14];
+    protected static class IndexViewPage implements Renderable {
+        private final IndexViewEntry[] entries = new IndexViewEntry[14];
         private final IndexViewScreen<?> screen;
 
         private IndexViewPage(IndexViewScreen<?> screen) {
             this.screen = screen;
         }
 
-        public static List<IndexViewPage> createPages(IndexViewScreen<?> screen, List<Entry> entries) {
+        public static List<IndexViewPage> createPages(IndexViewScreen<?> screen, List<IndexViewEntry> entries) {
             ImmutableList.Builder<IndexViewPage> builder = ImmutableList.builder();
             IndexViewPage page = null;
             int itemsCount = 0;
-            for (Entry entry : entries) {
+            for (IndexViewEntry entry : entries) {
                 if (page == null) {
                     page = new IndexViewPage(screen);
                     builder.add(page);
@@ -392,7 +382,7 @@ public abstract class IndexViewScreen<T extends SortProvider<T>> extends StatsUp
             int posX = startX;
             int posY = startY;
             for (int i = startIndex; i < endIndex; i++) {
-                Entry entry = this.entries[i];
+                IndexViewEntry entry = this.entries[i];
                 if (entry != null) {
                     int mouseXOffset = mouseX - startX;
                     int mouseYOffset = mouseY - startY - i % 7 * 21;
@@ -430,7 +420,7 @@ public abstract class IndexViewScreen<T extends SortProvider<T>> extends StatsUp
 
         public boolean mouseClicked(int mouseX, int mouseY, int buttonId) {
             for (int i = 0; i < this.entries.length; i++) {
-                Entry entry = this.entries[i];
+                IndexViewEntry entry = this.entries[i];
                 if (entry == null) return false;
                 int startX = i >= 7 ? this.screen.leftPos + 167 : this.screen.leftPos + 16;
                 int startY = this.screen.topPos + 26;
@@ -441,64 +431,8 @@ public abstract class IndexViewScreen<T extends SortProvider<T>> extends StatsUp
             return false;
         }
 
-        public static Entry createGroupEntry(Component modName, List<ItemStack> items, StatsCounter statsCounter, Font font) {
-            if (items.isEmpty()) throw new IllegalArgumentException("items must not be empty");
-            ItemStack displayItem = items.get(RANDOM.nextInt(items.size()));
-            long collectedCount = items.stream().filter((ItemStack stack) -> {
-                int pickedUp = statsCounter.getValue(Stats.ITEM_PICKED_UP, stack.getItem());
-                int crafted = statsCounter.getValue(Stats.ITEM_CRAFTED, stack.getItem());
-                return pickedUp + crafted > 0;
-            }).count();
-            boolean collected = collectedCount == items.size();
-            float collectionProgress = collectedCount / (float) items.size();
-            Component tooltipComponent = Component.empty()
-                    .append(modName)
-                    .append(Component.literal(" (" + PERCENTAGE_FORMAT.format(collectionProgress * 100.0F) + "%)")
-                            .withStyle(ChatFormatting.GOLD));
-            Component formattedName = formatDisplayName(font, modName, collected, false);
-            return new GroupEntry(displayItem,
-                    formattedName,
-                    collected,
-                    Collections.singletonList(tooltipComponent),
-                    Component.literal(collectedCount + "/" + items.size()),
-                    collectionProgress,
-                    items);
-        }
-
-        public static Entry createSingleEntry(ItemStack itemStack, StatsCounter statsCounter, Font font) {
-            int pickedUp = statsCounter.getValue(Stats.ITEM_PICKED_UP, itemStack.getItem());
-            int crafted = statsCounter.getValue(Stats.ITEM_CRAFTED, itemStack.getItem());
-            boolean collected = pickedUp > 0 || crafted > 0;
-            Component displayName = itemStack.getItem().getName(itemStack);
-            Component formattedName = formatDisplayName(font, displayName, collected, true);
-            List<Component> tooltipLines = new ArrayList<>();
-            tooltipLines.add(Component.empty()
-                    .append(itemStack.getItem().getName(itemStack))
-                    .withStyle(itemStack.getRarity().color()));
-            TooltipDisplay tooltipDisplay = itemStack.getOrDefault(DataComponents.TOOLTIP_DISPLAY,
-                    TooltipDisplay.DEFAULT);
-            itemStack.addDetailsToTooltip(Item.TooltipContext.EMPTY,
-                    tooltipDisplay,
-                    null,
-                    TooltipFlag.NORMAL,
-                    tooltipLines::add);
-            if (pickedUp > 0) {
-                tooltipLines.add(Component.literal(String.valueOf(pickedUp))
-                        .append(" ")
-                        .append(Component.translatable("stat_type.minecraft.picked_up"))
-                        .withStyle(ChatFormatting.BLUE));
-            }
-            if (crafted > 0) {
-                tooltipLines.add(Component.literal(String.valueOf(crafted))
-                        .append(" ")
-                        .append(Component.translatable("stat_type.minecraft.crafted"))
-                        .withStyle(ChatFormatting.BLUE));
-            }
-            return new SingleEntry(itemStack, formattedName, collected, ImmutableList.copyOf(tooltipLines));
-        }
-
-        private static Component formatDisplayName(Font font, Component displayName, boolean collected, boolean fullLength) {
-            Style style = Style.EMPTY.withColor(collected ? 0x4BA52F : ChatFormatting.BLACK.getColor());
+        protected static Component formatDisplayName(Font font, Component displayName, boolean collected, boolean fullLength) {
+            Style style = collected ? Style.EMPTY.withColor(0x4BA52F) : Style.EMPTY.withColor(ChatFormatting.BLACK);
             MutableComponent component;
             if (!fullLength && font.width(displayName) > 95) {
                 FormattedText formattedText = font.getSplitter()
@@ -510,221 +444,6 @@ public abstract class IndexViewScreen<T extends SortProvider<T>> extends StatsUp
                 component = Component.empty().append(displayName);
             }
             return component.withStyle(style);
-        }
-
-        public static abstract class Entry {
-            final ItemStack item;
-            final Component displayName;
-            private final boolean collected;
-            private final List<Component> tooltipLines;
-
-            private Entry(ItemStack item, Component displayName, boolean collected, List<Component> tooltipLines) {
-                this.item = item;
-                this.displayName = displayName;
-                this.collected = collected;
-                this.tooltipLines = tooltipLines;
-            }
-
-            public abstract <T extends Comparable<? super T>> T toComparableKey();
-
-            public String getString() {
-                return this.displayName.getString();
-            }
-
-            public boolean isCollected() {
-                return this.collected;
-            }
-
-            List<Component> getTooltipLines() {
-                return this.tooltipLines;
-            }
-
-            public void render(Minecraft minecraft, GuiGraphics guiGraphics, int mouseX, int mouseY, float partialTick, int posX, int posY) {
-                this.renderBackground(guiGraphics, mouseX, mouseY, partialTick, posX, posY);
-                this.renderForeground(minecraft, guiGraphics, mouseX, mouseY, partialTick, posX, posY);
-            }
-
-            public boolean isHoveringSlot(int mouseX, int mouseY) {
-                return this.isHovering(0, 0, 16, 16, mouseX, mouseY);
-            }
-
-            public boolean isMouseOver(int mouseX, int mouseY) {
-                return this.isHovering(0, 0, 134, 18, mouseX, mouseY);
-            }
-
-            public boolean mouseClicked(Screen screen, int mouseX, int mouseY, int buttonId) {
-                return false;
-            }
-
-            private boolean isHovering(int minX, int minY, int maxX, int maxY, int mouseX, int mouseY) {
-                return mouseX > minX && mouseX <= maxX && mouseY > minY && mouseY <= maxY;
-            }
-
-            public void renderBackground(GuiGraphics guiGraphics, int mouseX, int mouseY, float partialTick, int posX, int posY) {
-                guiGraphics.blit(RenderPipelines.GUI_TEXTURED, INDEX_LOCATION, posX, posY, 120, 208, 18, 18, 512, 256);
-                guiGraphics.blit(RenderPipelines.GUI_TEXTURED,
-                        INDEX_LOCATION,
-                        posX + 124,
-                        posY + 4,
-                        120 + (this.collected ? 10 : 0),
-                        198,
-                        10,
-                        10,
-                        512,
-                        256);
-            }
-
-            public void renderForeground(Minecraft minecraft, GuiGraphics guiGraphics, int mouseX, int mouseY, float partialTick, int posX, int posY) {
-                guiGraphics.renderItem(this.item, posX + 1, posY + 1);
-            }
-        }
-
-        private static class SingleEntry extends Entry {
-
-            public SingleEntry(ItemStack item, Component displayName, boolean collected, List<Component> tooltipLines) {
-                super(item, displayName, collected, tooltipLines);
-            }
-
-            @SuppressWarnings("unchecked")
-            @Override
-            public <T extends Comparable<? super T>> T toComparableKey() {
-                return (T) BuiltInRegistries.ITEM.getKey(this.item.getItem()).getPath();
-            }
-
-            @Override
-            public void renderForeground(Minecraft minecraft, GuiGraphics guiGraphics, int mouseX, int mouseY, float partialTick, int posX, int posY) {
-                super.renderForeground(minecraft, guiGraphics, mouseX, mouseY, partialTick, posX, posY);
-                renderScrollingString(guiGraphics,
-                        minecraft.font,
-                        this.displayName,
-                        posX + 23,
-                        posY + 4,
-                        posX + 23 + 95,
-                        posY + 4 + minecraft.font.lineHeight,
-                        0xFF000000);
-            }
-
-            /**
-             * Copied from
-             * {@link net.minecraft.client.gui.components.AbstractWidget#renderScrollingString(GuiGraphics, Font,
-             * Component, int, int, int, int, int)}.
-             * <p>
-             * Allows for rendering without enabled {@code dropShadow}.
-             */
-            protected static void renderScrollingString(GuiGraphics guiGraphics, Font font, Component text, int minX, int minY, int maxX, int maxY, int color) {
-                renderScrollingString(guiGraphics, font, text, (minX + maxX) / 2, minX, minY, maxX, maxY, color);
-            }
-
-            /**
-             * Copied from
-             * {@link net.minecraft.client.gui.components.AbstractWidget#renderScrollingString(GuiGraphics, Font,
-             * Component, int, int, int, int, int, int)}.
-             * <p>
-             * Allows for rendering without enabled {@code dropShadow}.
-             */
-            protected static void renderScrollingString(GuiGraphics guiGraphics, Font font, Component text, int centerX, int minX, int minY, int maxX, int maxY, int color) {
-                int i = font.width(text);
-                int j = (minY + maxY - 9) / 2 + 1;
-                int k = maxX - minX;
-                if (i > k) {
-                    int l = i - k;
-                    double d = (double) Util.getMillis() / 1000.0;
-                    double e = Math.max((double) l * 0.5, 3.0);
-                    double f = Math.sin((Math.PI / 2) * Math.cos((Math.PI * 2) * d / e)) / 2.0 + 0.5;
-                    double g = Mth.lerp(f, 0.0, l);
-                    guiGraphics.enableScissor(minX, minY, maxX, maxY);
-                    guiGraphics.drawString(font, text, minX - (int) g, j, color, false);
-                    guiGraphics.disableScissor();
-                } else {
-                    int l = Mth.clamp(centerX, minX + i / 2, maxX - i / 2);
-                    FormattedCharSequence formattedCharSequence = text.getVisualOrderText();
-                    guiGraphics.drawString(font, text, l - font.width(formattedCharSequence) / 2, j, color, false);
-                }
-            }
-        }
-
-        public static class GroupEntry extends Entry {
-            private final Component collection;
-            private final float collectionProgress;
-            private final List<ItemStack> items;
-
-            public GroupEntry(ItemStack item, Component displayName, boolean collected, List<Component> tooltipLines, Component collection, float collectionProgress, List<ItemStack> items) {
-                super(item, displayName, collected, tooltipLines);
-                this.collection = collection;
-                this.collectionProgress = collectionProgress;
-                this.items = items;
-            }
-
-            @SuppressWarnings("unchecked")
-            @Override
-            public <T extends Comparable<? super T>> T toComparableKey() {
-                return (T) this.displayName.getString();
-            }
-
-            @Override
-            public void renderBackground(GuiGraphics guiGraphics, int mouseX, int mouseY, float partialTick, int posX, int posY) {
-                super.renderBackground(guiGraphics, mouseX, mouseY, partialTick, posX, posY);
-                guiGraphics.blit(RenderPipelines.GUI_TEXTURED,
-                        INDEX_LOCATION,
-                        posX + 24,
-                        posY + 11,
-                        140,
-                        198,
-                        91,
-                        5,
-                        512,
-                        256);
-                guiGraphics.blit(RenderPipelines.GUI_TEXTURED,
-                        INDEX_LOCATION,
-                        posX + 24,
-                        posY + 11,
-                        140,
-                        203,
-                        (int) (91 * this.collectionProgress),
-                        5,
-                        512,
-                        256);
-                if (this.isMouseOver(mouseX, mouseY)) {
-                    guiGraphics.blit(RenderPipelines.GUI_TEXTURED,
-                            INDEX_LOCATION,
-                            posX - 2,
-                            posY - 2,
-                            316,
-                            0,
-                            140,
-                            22,
-                            512,
-                            256);
-                }
-            }
-
-            @Override
-            public void renderForeground(Minecraft minecraft, GuiGraphics guiGraphics, int mouseX, int mouseY, float partialTick, int posX, int posY) {
-                super.renderForeground(minecraft, guiGraphics, mouseX, mouseY, partialTick, posX, posY);
-                Font font = minecraft.font;
-                guiGraphics.drawString(font,
-                        this.displayName,
-                        posX + 70 - font.width(this.displayName) / 2,
-                        posY,
-                        0xFF000000,
-                        false);
-                GuiGraphicsHelper.drawInBatch8xOutline(guiGraphics,
-                        font,
-                        this.collection,
-                        posX + 70 - font.width(this.collection) / 2,
-                        posY + 10,
-                        0xFFFFC700,
-                        0xFF000000);
-            }
-
-            @Override
-            public boolean mouseClicked(Screen screen, int mouseX, int mouseY, int buttonId) {
-                screen.minecraft.setScreen(new ItemsIndexViewScreen(screen,
-                        ((IndexViewScreen<?>) screen).fromInventory,
-                        this.items));
-                screen.minecraft.getSoundManager().play(SimpleSoundInstance.forUI(SoundEvents.UI_BUTTON_CLICK, 1.0F));
-                return true;
-            }
         }
     }
 }

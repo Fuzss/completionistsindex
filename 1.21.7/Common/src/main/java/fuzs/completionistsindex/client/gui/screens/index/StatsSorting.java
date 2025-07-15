@@ -1,7 +1,8 @@
-package fuzs.completionistsindex.client.gui.screens.inventory;
+package fuzs.completionistsindex.client.gui.screens.index;
 
 import com.google.common.collect.Ordering;
 import fuzs.completionistsindex.CompletionistsIndex;
+import fuzs.completionistsindex.client.gui.components.index.IndexViewEntry;
 import net.minecraft.network.chat.Component;
 
 import java.util.Comparator;
@@ -30,13 +31,13 @@ public enum StatsSorting implements SortProvider<StatsSorting> {
     }
 
     @Override
-    public Comparator<IndexViewScreen.IndexViewPage.Entry> getComparator() {
+    public Comparator<IndexViewEntry> getComparator() {
         return switch (this) {
             case CREATIVE -> Ordering.allEqual()::compare;
-            case ALPHABETICALLY -> Comparator.comparing(IndexViewScreen.IndexViewPage.Entry::toComparableKey);
-            case COLLECTED -> Comparator.comparing(IndexViewScreen.IndexViewPage.Entry::isCollected)
+            case ALPHABETICALLY -> Comparator.comparing(IndexViewEntry::toComparableKey);
+            case COLLECTED -> Comparator.comparing(IndexViewEntry::isCollected)
                     .reversed()
-                    .thenComparing(IndexViewScreen.IndexViewPage.Entry::toComparableKey);
+                    .thenComparing(IndexViewEntry::toComparableKey);
         };
     }
 }

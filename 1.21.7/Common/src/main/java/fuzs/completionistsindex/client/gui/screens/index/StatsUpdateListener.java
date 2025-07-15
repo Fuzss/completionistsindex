@@ -1,4 +1,4 @@
-package fuzs.completionistsindex.client.gui.screens.inventory;
+package fuzs.completionistsindex.client.gui.screens.index;
 
 import net.minecraft.client.gui.components.ObjectSelectionList;
 import net.minecraft.client.gui.screens.Screen;
@@ -12,7 +12,7 @@ import org.jetbrains.annotations.Nullable;
  */
 public abstract class StatsUpdateListener extends StatsScreen {
 
-    public StatsUpdateListener(Screen lastScreen) {
+    public StatsUpdateListener(@Nullable Screen lastScreen) {
         super(lastScreen, new StatsCounter());
     }
 

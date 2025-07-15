@@ -1,8 +1,9 @@
-package fuzs.completionistsindex.client.gui.screens.inventory;
+package fuzs.completionistsindex.client.gui.screens.index;
 
 import com.google.common.collect.ImmutableMap;
 import com.google.common.collect.Ordering;
 import fuzs.completionistsindex.CompletionistsIndex;
+import fuzs.completionistsindex.client.gui.components.index.IndexViewEntry;
 import fuzs.completionistsindex.config.ClientConfig;
 import fuzs.puzzleslib.api.core.v1.ModContainer;
 import fuzs.puzzleslib.api.core.v1.ModLoaderEnvironment;
@@ -62,10 +63,10 @@ public enum IndexGroup implements SortProvider<IndexGroup> {
     }
 
     @Override
-    public Comparator<IndexViewScreen.IndexViewPage.Entry> getComparator() {
+    public Comparator<IndexViewEntry> getComparator() {
         return switch (this) {
             case CREATIVE -> Ordering.allEqual()::compare;
-            case MODS -> Comparator.comparing(IndexViewScreen.IndexViewPage.Entry::toComparableKey);
+            case MODS -> Comparator.comparing(IndexViewEntry::toComparableKey);
         };
     }
 
