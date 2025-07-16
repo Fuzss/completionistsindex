@@ -4,9 +4,7 @@ import com.google.common.collect.ImmutableList;
 import fuzs.completionistsindex.CompletionistsIndex;
 import fuzs.completionistsindex.client.gui.components.index.IndexViewEntry;
 import fuzs.puzzleslib.api.client.gui.v2.components.SpritelessImageButton;
-import fuzs.puzzleslib.api.util.v1.ComponentHelper;
 import net.minecraft.ChatFormatting;
-import net.minecraft.client.gui.Font;
 import net.minecraft.client.gui.GuiGraphics;
 import net.minecraft.client.gui.components.Button;
 import net.minecraft.client.gui.components.EditBox;
@@ -16,7 +14,7 @@ import net.minecraft.client.gui.navigation.ScreenAxis;
 import net.minecraft.client.gui.navigation.ScreenRectangle;
 import net.minecraft.client.gui.screens.Screen;
 import net.minecraft.client.renderer.RenderPipelines;
-import net.minecraft.network.chat.*;
+import net.minecraft.network.chat.Component;
 import net.minecraft.resources.ResourceLocation;
 import net.minecraft.util.Mth;
 import net.minecraft.util.RandomSource;
@@ -24,7 +22,6 @@ import org.jetbrains.annotations.Nullable;
 
 import java.util.List;
 import java.util.Locale;
-import java.util.Optional;
 import java.util.stream.Stream;
 
 public abstract class IndexViewScreen<T extends SortProvider<T>> extends StatsUpdateListener {
@@ -34,11 +31,7 @@ public abstract class IndexViewScreen<T extends SortProvider<T>> extends StatsUp
     private static final Component SEARCH_HINT = Component.translatable("gui.recipebook.search_hint")
             .withStyle(ChatFormatting.ITALIC)
             .withStyle(ChatFormatting.GRAY);
-    private static final ResourceLocation SLOT_HIGHLIGHT_BACK_SPRITE = ResourceLocation.withDefaultNamespace(
-            "container/slot_highlight_back");
-    private static final ResourceLocation SLOT_HIGHLIGHT_FRONT_SPRITE = ResourceLocation.withDefaultNamespace(
-            "container/slot_highlight_front");
-    protected static final RandomSource RANDOM = RandomSource.create();
+    public static final RandomSource RANDOM = RandomSource.create();
 
     private final boolean fromInventory;
     protected int leftPos;
@@ -49,8 +42,6 @@ public abstract class IndexViewScreen<T extends SortProvider<T>> extends StatsUp
     private Component leftPageIndicator;
     private Component rightPageIndicator;
     private List<IndexViewPage> pages;
-    @Nullable
-    private List<Component> tooltipLines;
     @Nullable
     private EditBox searchBox;
     private String lastSearch = "";
@@ -64,12 +55,12 @@ public abstract class IndexViewScreen<T extends SortProvider<T>> extends StatsUp
         this.fromInventory = fromInventory;
     }
 
-    protected abstract Stream<IndexViewEntry> getPageEntries();
+    protected abstract Stream<IndexViewEntry<?>> getPageEntries();
 
     protected void rebuildPages() {
         RANDOM.setSeed(this.randomSeed);
-        List<IndexViewEntry> entries = this.getPageEntries().filter((IndexViewEntry entry) -> {
-            return entry.getString().toLowerCase(Locale.ROOT).contains(this.getSearchQuery());
+        List<IndexViewEntry<?>> entries = this.getPageEntries().filter((IndexViewEntry<?> entry) -> {
+            return entry.getDisplayNameString().toLowerCase(Locale.ROOT).contains(this.getSearchQuery());
         }).sorted(this.getSortProvider().getComparator()).toList();
         this.pages = IndexViewPage.createPages(this, entries);
         this.setCurrentPage(0);
@@ -85,7 +76,7 @@ public abstract class IndexViewScreen<T extends SortProvider<T>> extends StatsUp
                 this.topPos - 23 + 5,
                 16,
                 16);
-        this.searchBox = new EditBox(this.minecraft.font,
+        this.searchBox = new EditBox(this.font,
                 this.leftPos + (316 / 2 - 146) / 2 + 43,
                 this.topPos - 23 + 6,
                 81,
@@ -105,7 +96,7 @@ public abstract class IndexViewScreen<T extends SortProvider<T>> extends StatsUp
                 INDEX_LOCATION,
                 512,
                 256,
-                button -> {
+                (Button button) -> {
                     this.onClose();
                 }));
         this.addRenderableWidget(new SpritelessImageButton(this.leftPos + 316 - 17 - 16,
@@ -118,7 +109,7 @@ public abstract class IndexViewScreen<T extends SortProvider<T>> extends StatsUp
                 INDEX_LOCATION,
                 512,
                 256,
-                button -> {
+                (Button button) -> {
                     this.setSortProvider(this.getSortProvider().cycle());
                     button.setTooltip(Tooltip.create(this.getSortProvider().getComponent()));
                     this.rebuildPages();
@@ -133,7 +124,7 @@ public abstract class IndexViewScreen<T extends SortProvider<T>> extends StatsUp
                 INDEX_LOCATION,
                 512,
                 256,
-                button -> {
+                (Button button) -> {
                     this.decrementPage();
                 }));
         this.turnPageBackwards.setTooltip(Tooltip.create(PREVIOUS_PAGE_COMPONENT));
@@ -147,7 +138,7 @@ public abstract class IndexViewScreen<T extends SortProvider<T>> extends StatsUp
                 INDEX_LOCATION,
                 512,
                 256,
-                button -> {
+                (Button button) -> {
                     this.incrementPage();
                 }));
         this.turnPageForwards.setTooltip(Tooltip.create(NEXT_PAGE_COMPONENT));
@@ -220,15 +211,11 @@ public abstract class IndexViewScreen<T extends SortProvider<T>> extends StatsUp
 
     @Override
     public void render(GuiGraphics guiGraphics, int mouseX, int mouseY, float partialTick) {
-        this.tooltipLines = null;
         this.setFocused(null);
         super.render(guiGraphics, mouseX, mouseY, partialTick);
         this.searchBox.render(guiGraphics, mouseX, mouseY, partialTick);
         if (this.pages != null && !this.pages.isEmpty()) {
             this.pages.get(this.currentPage).render(guiGraphics, mouseX, mouseY, partialTick);
-        }
-        if (this.tooltipLines != null) {
-            guiGraphics.setTooltipForNextFrame(this.font, this.tooltipLines, Optional.empty(), mouseX, mouseY);
         }
     }
 
@@ -333,18 +320,18 @@ public abstract class IndexViewScreen<T extends SortProvider<T>> extends StatsUp
     }
 
     protected static class IndexViewPage implements Renderable {
-        private final IndexViewEntry[] entries = new IndexViewEntry[14];
+        private final IndexViewEntry<?>[] entries = new IndexViewEntry[14];
         private final IndexViewScreen<?> screen;
 
         private IndexViewPage(IndexViewScreen<?> screen) {
             this.screen = screen;
         }
 
-        public static List<IndexViewPage> createPages(IndexViewScreen<?> screen, List<IndexViewEntry> entries) {
+        public static List<IndexViewPage> createPages(IndexViewScreen<?> screen, List<IndexViewEntry<?>> entries) {
             ImmutableList.Builder<IndexViewPage> builder = ImmutableList.builder();
             IndexViewPage page = null;
             int itemsCount = 0;
-            for (IndexViewEntry entry : entries) {
+            for (IndexViewEntry<?> entry : entries) {
                 if (page == null) {
                     page = new IndexViewPage(screen);
                     builder.add(page);
@@ -379,38 +366,16 @@ public abstract class IndexViewScreen<T extends SortProvider<T>> extends StatsUp
         }
 
         private void renderPageSide(GuiGraphics guiGraphics, int mouseX, int mouseY, float partialTick, int startX, int startY, int startIndex, int endIndex) {
-            int posX = startX;
-            int posY = startY;
-            for (int i = startIndex; i < endIndex; i++) {
-                IndexViewEntry entry = this.entries[i];
-                if (entry != null) {
-                    int mouseXOffset = mouseX - startX;
-                    int mouseYOffset = mouseY - startY - i % 7 * 21;
-                    boolean isHoveringSlot = entry.isHoveringSlot(mouseXOffset, mouseYOffset);
-                    if (isHoveringSlot) {
-                        guiGraphics.blitSprite(RenderPipelines.GUI_TEXTURED,
-                                SLOT_HIGHLIGHT_BACK_SPRITE,
-                                posX + 1 - 4,
-                                posY + 1 - 4,
-                                24,
-                                24);
-                    }
-                    entry.render(this.screen.minecraft,
+            for (int i = startIndex, posY = startY; i < endIndex; i++) {
+                IndexViewEntry<?> indexViewEntry = this.entries[i];
+                if (indexViewEntry != null) {
+                    indexViewEntry.renderWithTooltip(this.screen.font,
                             guiGraphics,
-                            mouseXOffset,
-                            mouseYOffset,
+                            mouseX,
+                            mouseY,
                             partialTick,
-                            posX,
+                            startX,
                             posY);
-                    if (isHoveringSlot) {
-                        guiGraphics.blitSprite(RenderPipelines.GUI_TEXTURED,
-                                SLOT_HIGHLIGHT_FRONT_SPRITE,
-                                posX + 1 - 4,
-                                posY + 1 - 4,
-                                24,
-                                24);
-                        this.screen.tooltipLines = entry.getTooltipLines();
-                    }
                     posY += 21;
                 } else {
                     break;
@@ -420,30 +385,19 @@ public abstract class IndexViewScreen<T extends SortProvider<T>> extends StatsUp
 
         public boolean mouseClicked(int mouseX, int mouseY, int buttonId) {
             for (int i = 0; i < this.entries.length; i++) {
-                IndexViewEntry entry = this.entries[i];
-                if (entry == null) return false;
-                int startX = i >= 7 ? this.screen.leftPos + 167 : this.screen.leftPos + 16;
-                int startY = this.screen.topPos + 26;
-                if (entry.isMouseOver(mouseX - startX, mouseY - startY - i % 7 * 21)) {
-                    return entry.mouseClicked(this.screen, mouseX, mouseY, buttonId);
+                IndexViewEntry<?> indexViewEntry = this.entries[i];
+                if (indexViewEntry != null) {
+                    int posX = i >= 7 ? this.screen.leftPos + 167 : this.screen.leftPos + 16;
+                    int posY = this.screen.topPos + 26 + i % 7 * 21;
+                    if (indexViewEntry.isMouseOver(posX, posY, mouseX, mouseY)) {
+                        return indexViewEntry.mouseClicked(mouseX, mouseY, buttonId);
+                    }
+                } else {
+                    return false;
                 }
             }
-            return false;
-        }
 
-        protected static Component formatDisplayName(Font font, Component displayName, boolean collected, boolean fullLength) {
-            Style style = collected ? Style.EMPTY.withColor(0x4BA52F) : Style.EMPTY.withColor(ChatFormatting.BLACK);
-            MutableComponent component;
-            if (!fullLength && font.width(displayName) > 95) {
-                FormattedText formattedText = font.getSplitter()
-                        .headByWidth(displayName, 95 - font.width(CommonComponents.ELLIPSIS), style);
-                component = Component.empty()
-                        .append(ComponentHelper.toComponent(formattedText))
-                        .append(CommonComponents.ELLIPSIS);
-            } else {
-                component = Component.empty().append(displayName);
-            }
-            return component.withStyle(style);
+            return false;
         }
     }
 }

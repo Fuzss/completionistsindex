@@ -4,20 +4,40 @@ import com.google.common.collect.Ordering;
 import fuzs.completionistsindex.CompletionistsIndex;
 import fuzs.completionistsindex.client.gui.components.index.IndexViewEntry;
 import net.minecraft.network.chat.Component;
+import net.minecraft.util.StringRepresentable;
 
 import java.util.Comparator;
+import java.util.Locale;
 
-public enum StatsSorting implements SortProvider<StatsSorting> {
-    CREATIVE("creative"),
-    ALPHABETICALLY("alphabetically"),
-    COLLECTED("collected");
+public enum StatsSorting implements SortProvider<StatsSorting>, StringRepresentable {
+    CREATIVE {
+        @Override
+        public Comparator<IndexViewEntry<?>> getComparator() {
+            return Ordering.allEqual()::compare;
+        }
+    },
+    ALPHABETICALLY {
+        @Override
+        public Comparator<IndexViewEntry<?>> getComparator() {
+            return Comparator.comparing(IndexViewEntry::toComparableKey);
+        }
+    },
+    COLLECTED {
+        @Override
+        public Comparator<IndexViewEntry<?>> getComparator() {
+            return Comparator.<IndexViewEntry<?>, Boolean>comparing(IndexViewEntry::isCollected)
+                    .reversed()
+                    .thenComparing(IndexViewEntry::toComparableKey);
+        }
+    };
 
     private static final StatsSorting[] VALUES = StatsSorting.values();
 
     private final Component component;
 
-    StatsSorting(String translationKey) {
-        this.component = Component.translatable(CompletionistsIndex.MOD_ID + ".gui.index.sorting." + translationKey);
+    StatsSorting() {
+        this.component = Component.translatable(
+                CompletionistsIndex.MOD_ID + ".gui.index.sorting." + this.getSerializedName());
     }
 
     @Override
@@ -31,13 +51,7 @@ public enum StatsSorting implements SortProvider<StatsSorting> {
     }
 
     @Override
-    public Comparator<IndexViewEntry> getComparator() {
-        return switch (this) {
-            case CREATIVE -> Ordering.allEqual()::compare;
-            case ALPHABETICALLY -> Comparator.comparing(IndexViewEntry::toComparableKey);
-            case COLLECTED -> Comparator.comparing(IndexViewEntry::isCollected)
-                    .reversed()
-                    .thenComparing(IndexViewEntry::toComparableKey);
-        };
+    public String getSerializedName() {
+        return this.name().toLowerCase(Locale.ROOT);
     }
 }

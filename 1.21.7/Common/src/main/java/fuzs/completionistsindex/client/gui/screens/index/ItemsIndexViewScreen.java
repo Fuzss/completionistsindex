@@ -1,43 +1,65 @@
 package fuzs.completionistsindex.client.gui.screens.index;
 
-import com.google.common.collect.ImmutableList;
 import com.mojang.blaze3d.platform.InputConstants;
 import fuzs.completionistsindex.client.gui.components.index.IndexViewEntry;
 import fuzs.completionistsindex.client.gui.components.index.IndexViewSingleEntry;
 import fuzs.puzzleslib.api.client.gui.v2.components.SpritelessImageButton;
-import net.minecraft.ChatFormatting;
-import net.minecraft.client.gui.Font;
+import net.minecraft.client.Minecraft;
+import net.minecraft.client.gui.GuiGraphics;
 import net.minecraft.client.gui.components.Button;
 import net.minecraft.client.gui.components.Tooltip;
 import net.minecraft.client.gui.screens.Screen;
-import net.minecraft.core.component.DataComponents;
+import net.minecraft.client.renderer.RenderPipelines;
+import net.minecraft.client.server.IntegratedServer;
 import net.minecraft.network.chat.CommonComponents;
-import net.minecraft.network.chat.Component;
-import net.minecraft.stats.Stats;
+import net.minecraft.server.level.ServerPlayer;
 import net.minecraft.stats.StatsCounter;
-import net.minecraft.world.item.Item;
 import net.minecraft.world.item.ItemStack;
-import net.minecraft.world.item.TooltipFlag;
-import net.minecraft.world.item.component.TooltipDisplay;
+import org.jetbrains.annotations.Nullable;
 
-import java.util.ArrayList;
 import java.util.List;
 import java.util.stream.Stream;
 
 public class ItemsIndexViewScreen extends IndexViewScreen<StatsSorting> {
-    private static StatsSorting statsSorting = StatsSorting.CREATIVE;
+    private static StatsSorting statsSorting = StatsSorting.COLLECTED;
     private final List<ItemStack> items;
+    @Nullable
+    private final ServerPlayer serverPlayer;
+    private boolean isEditingPermitted;
 
     public ItemsIndexViewScreen(Screen lastScreen, boolean fromInventory, List<ItemStack> items) {
         super(lastScreen, fromInventory);
         this.items = items;
+        this.serverPlayer = this.getPlayerFromServer();
+    }
+
+    @Nullable
+    private ServerPlayer getPlayerFromServer() {
+        IntegratedServer integratedServer = Minecraft.getInstance().getSingleplayerServer();
+
+        if (integratedServer != null) {
+            ServerPlayer serverPlayer = integratedServer.getPlayerList()
+                    .getPlayer(integratedServer.getSingleplayerProfile().getId());
+
+            if (serverPlayer != null && serverPlayer.canUseGameMasterBlocks()) {
+                return serverPlayer;
+            }
+        }
+
+        return null;
+    }
+
+    public @Nullable ServerPlayer getServerPlayer() {
+        return this.isEditingPermitted ? this.serverPlayer : null;
     }
 
     @Override
-    protected Stream<IndexViewEntry> getPageEntries() {
+    protected Stream<IndexViewEntry<?>> getPageEntries() {
         StatsCounter statsCounter = this.minecraft.player.getStats();
         return this.items.stream().map((ItemStack itemStack) -> {
-            return createSingleEntry(itemStack, statsCounter, this.font);
+            IndexViewSingleEntry indexViewEntry = new IndexViewSingleEntry(this, itemStack);
+            indexViewEntry.initialize(statsCounter);
+            return indexViewEntry;
         });
     }
 
@@ -57,6 +79,22 @@ public class ItemsIndexViewScreen extends IndexViewScreen<StatsSorting> {
                 (Button button) -> {
                     this.minecraft.setScreen(this.lastScreen);
                 })).setTooltip(Tooltip.create(CommonComponents.GUI_BACK));
+        if (this.serverPlayer != null) {
+            this.addRenderableWidget(new SpritelessImageButton(this.leftPos + 316 - 6 - 26 * 2 + 5 - 3,
+                    this.topPos - 23 + 5,
+                    16,
+                    16,
+                    this.isEditingPermitted ? 368 + 5 : 342 + 5,
+                    45 + 5,
+                    16 + 7,
+                    INDEX_LOCATION,
+                    512,
+                    256,
+                    (Button button) -> {
+                        this.isEditingPermitted = !this.isEditingPermitted;
+                        ((SpritelessImageButton) button).xTexStart = this.isEditingPermitted ? 368 + 5 : 342 + 5;
+                    }));
+        }
         this.rebuildPages();
     }
 
@@ -68,6 +106,23 @@ public class ItemsIndexViewScreen extends IndexViewScreen<StatsSorting> {
     @Override
     protected void setSortProvider(StatsSorting sortProvider) {
         statsSorting = sortProvider;
+    }
+
+    @Override
+    public void renderBackground(GuiGraphics guiGraphics, int mouseX, int mouseY, float partialTick) {
+        super.renderBackground(guiGraphics, mouseX, mouseY, partialTick);
+        if (this.serverPlayer != null) {
+            guiGraphics.blit(RenderPipelines.GUI_TEXTURED,
+                    INDEX_LOCATION,
+                    this.leftPos + 316 - 6 - 26 * 2 - 3,
+                    this.topPos - 23,
+                    this.isEditingPermitted ? 368 : 342,
+                    45,
+                    26,
+                    23,
+                    512,
+                    256);
+        }
     }
 
     @Override
@@ -87,36 +142,5 @@ public class ItemsIndexViewScreen extends IndexViewScreen<StatsSorting> {
         if (this.lastScreen != null) {
             this.lastScreen.onClose();
         }
-    }
-
-    private static IndexViewEntry createSingleEntry(ItemStack itemStack, StatsCounter statsCounter, Font font) {
-        int pickedUp = statsCounter.getValue(Stats.ITEM_PICKED_UP, itemStack.getItem());
-        int crafted = statsCounter.getValue(Stats.ITEM_CRAFTED, itemStack.getItem());
-        boolean collected = pickedUp > 0 || crafted > 0;
-        Component displayName = itemStack.getItem().getName(itemStack);
-        Component formattedName = IndexViewPage.formatDisplayName(font, displayName, collected, true);
-        List<Component> tooltipLines = new ArrayList<>();
-        tooltipLines.add(Component.empty()
-                .append(itemStack.getItem().getName(itemStack))
-                .withStyle(itemStack.getRarity().color()));
-        TooltipDisplay tooltipDisplay = itemStack.getOrDefault(DataComponents.TOOLTIP_DISPLAY, TooltipDisplay.DEFAULT);
-        itemStack.addDetailsToTooltip(Item.TooltipContext.EMPTY,
-                tooltipDisplay,
-                null,
-                TooltipFlag.NORMAL,
-                tooltipLines::add);
-        if (pickedUp > 0) {
-            tooltipLines.add(Component.literal(String.valueOf(pickedUp))
-                    .append(" ")
-                    .append(Component.translatable("stat_type.minecraft.picked_up"))
-                    .withStyle(ChatFormatting.BLUE));
-        }
-        if (crafted > 0) {
-            tooltipLines.add(Component.literal(String.valueOf(crafted))
-                    .append(" ")
-                    .append(Component.translatable("stat_type.minecraft.crafted"))
-                    .withStyle(ChatFormatting.BLUE));
-        }
-        return new IndexViewSingleEntry(itemStack, formattedName, collected, ImmutableList.copyOf(tooltipLines));
     }
 }

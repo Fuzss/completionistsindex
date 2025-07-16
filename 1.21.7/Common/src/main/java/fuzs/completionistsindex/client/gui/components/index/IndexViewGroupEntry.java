@@ -1,36 +1,75 @@
 package fuzs.completionistsindex.client.gui.components.index;
 
+import com.google.common.collect.ImmutableList;
 import fuzs.completionistsindex.client.gui.screens.index.IndexViewScreen;
 import fuzs.completionistsindex.client.gui.screens.index.ItemsIndexViewScreen;
+import fuzs.completionistsindex.client.gui.screens.index.ModsIndexViewScreen;
 import fuzs.puzzleslib.api.client.gui.v2.GuiGraphicsHelper;
-import net.minecraft.client.Minecraft;
+import net.minecraft.ChatFormatting;
+import net.minecraft.Util;
 import net.minecraft.client.gui.Font;
 import net.minecraft.client.gui.GuiGraphics;
-import net.minecraft.client.gui.screens.Screen;
 import net.minecraft.client.renderer.RenderPipelines;
 import net.minecraft.client.resources.sounds.SimpleSoundInstance;
 import net.minecraft.network.chat.Component;
 import net.minecraft.sounds.SoundEvents;
+import net.minecraft.stats.StatsCounter;
+import net.minecraft.util.ARGB;
+import net.minecraft.world.item.Item;
 import net.minecraft.world.item.ItemStack;
 
+import java.text.DecimalFormat;
 import java.util.List;
 
-public class IndexViewGroupEntry extends IndexViewEntry {
-    private final Component collection;
-    private final float collectionProgress;
-    private final List<ItemStack> items;
+public class IndexViewGroupEntry extends IndexViewEntry<ModsIndexViewScreen> {
+    private static final DecimalFormat PERCENTAGE_FORMAT = new DecimalFormat("#.##");
 
-    public IndexViewGroupEntry(ItemStack item, Component displayName, boolean collected, List<Component> tooltipLines, Component collection, float collectionProgress, List<ItemStack> items) {
-        super(item, displayName, collected, tooltipLines);
-        this.collection = collection;
-        this.collectionProgress = collectionProgress;
+    private final List<ItemStack> items;
+    private int collectedItems;
+
+    public IndexViewGroupEntry(ModsIndexViewScreen screen, List<ItemStack> items, Component displayName) {
+        super(screen, Util.getRandom(items, IndexViewScreen.RANDOM), displayName);
         this.items = items;
     }
 
-    @SuppressWarnings("unchecked")
     @Override
-    public <T extends Comparable<? super T>> T toComparableKey() {
-        return (T) this.displayName.getString();
+    public void initialize(StatsCounter statsCounter) {
+        super.initialize(statsCounter);
+        this.collectedItems = this.getCollectedItemsValue(statsCounter);
+    }
+
+    private int getCollectedItemsValue(StatsCounter statsCounter) {
+        return (int) this.items.stream().map(ItemStack::getItem).mapToInt((Item item) -> {
+            return this.getStatsValue(statsCounter, item);
+        }).filter((int value) -> {
+            return value > 0;
+        }).count();
+    }
+
+    @Override
+    protected List<Component> createTooltipLines(ItemStack itemStack, StatsCounter statsCounter) {
+        float progressAmount = this.getProgressAmount(this.getCollectedItemsValue(statsCounter));
+        Component component = Component.literal(" (" + PERCENTAGE_FORMAT.format(progressAmount * 100.0F) + "%)")
+                .withStyle(ChatFormatting.GOLD);
+        return ImmutableList.of(Component.empty().append(this.getDisplayName()).append(component));
+    }
+
+    private float getProgressAmount(int collectedItemsValue) {
+        return collectedItemsValue / (float) this.items.size();
+    }
+
+    private Component getProgressComponent(int collectedItemsValue) {
+        return Component.literal(collectedItemsValue + "/" + this.items.size());
+    }
+
+    @Override
+    public String toComparableKey() {
+        return this.getDisplayNameString();
+    }
+
+    @Override
+    public boolean isCollected() {
+        return this.collectedItems == this.items.size();
     }
 
     @Override
@@ -52,49 +91,41 @@ public class IndexViewGroupEntry extends IndexViewEntry {
                 posY + 11,
                 140,
                 203,
-                (int) (91 * this.collectionProgress),
+                (int) (91 * this.getProgressAmount(this.collectedItems)),
                 5,
                 512,
                 256);
-        if (this.isMouseOver(mouseX, mouseY)) {
-            guiGraphics.blit(RenderPipelines.GUI_TEXTURED,
-                    IndexViewScreen.INDEX_LOCATION,
-                    posX - 2,
-                    posY - 2,
-                    316,
-                    0,
-                    140,
-                    22,
-                    512,
-                    256);
-        }
     }
 
     @Override
-    public void renderForeground(Minecraft minecraft, GuiGraphics guiGraphics, int mouseX, int mouseY, float partialTick, int posX, int posY) {
-        super.renderForeground(minecraft, guiGraphics, mouseX, mouseY, partialTick, posX, posY);
-        Font font = minecraft.font;
-        guiGraphics.drawString(font,
-                this.displayName,
-                posX + 70 - font.width(this.displayName) / 2,
-                posY,
-                0xFF000000,
-                false);
+    protected boolean isClickable() {
+        return true;
+    }
+
+    @Override
+    public void renderForeground(GuiGraphics guiGraphics, int mouseX, int mouseY, float partialTick, int posX, int posY, Font font) {
+        super.renderForeground(guiGraphics, mouseX, mouseY, partialTick, posX, posY, font);
+        Component progressComponent = this.getProgressComponent(this.collectedItems);
         GuiGraphicsHelper.drawInBatch8xOutline(guiGraphics,
                 font,
-                this.collection,
-                posX + 70 - font.width(this.collection) / 2,
+                progressComponent,
+                posX + 70 - font.width(progressComponent) / 2,
                 posY + 10,
-                0xFFFFC700,
-                0xFF000000);
+                ARGB.opaque(0xFFC700),
+                ARGB.opaque(0));
     }
 
     @Override
-    public boolean mouseClicked(Screen screen, int mouseX, int mouseY, int buttonId) {
-        screen.minecraft.setScreen(new ItemsIndexViewScreen(screen,
-                ((IndexViewScreen<?>) screen).isFromInventory(),
+    protected int getDisplayNameYOffset() {
+        return 0;
+    }
+
+    @Override
+    public boolean mouseClicked(int mouseX, int mouseY, int buttonId) {
+        this.screen.minecraft.setScreen(new ItemsIndexViewScreen(this.screen,
+                this.screen.isFromInventory(),
                 this.items));
-        screen.minecraft.getSoundManager().play(SimpleSoundInstance.forUI(SoundEvents.UI_BUTTON_CLICK, 1.0F));
+        this.screen.minecraft.getSoundManager().play(SimpleSoundInstance.forUI(SoundEvents.UI_BUTTON_CLICK, 1.0F));
         return true;
     }
 }

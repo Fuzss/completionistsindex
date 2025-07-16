@@ -11,5 +11,5 @@ public interface SortProvider<T> {
 
     Component getComponent();
 
-    Comparator<IndexViewEntry> getComparator();
+    Comparator<IndexViewEntry<?>> getComparator();
 }

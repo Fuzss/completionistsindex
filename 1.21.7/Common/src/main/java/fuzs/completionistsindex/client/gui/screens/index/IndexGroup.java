@@ -6,7 +6,6 @@ import fuzs.completionistsindex.CompletionistsIndex;
 import fuzs.completionistsindex.client.gui.components.index.IndexViewEntry;
 import fuzs.completionistsindex.config.ClientConfig;
 import fuzs.puzzleslib.api.core.v1.ModContainer;
-import fuzs.puzzleslib.api.core.v1.ModLoaderEnvironment;
 import net.minecraft.core.registries.BuiltInRegistries;
 import net.minecraft.network.chat.Component;
 import net.minecraft.world.item.CreativeModeTab;
@@ -19,26 +18,37 @@ import java.util.stream.Collectors;
 public enum IndexGroup implements SortProvider<IndexGroup> {
     CREATIVE {
         @Override
-        SequencedMap<Component, List<ItemStack>> getGroups(List<ItemStack> allItems) {
+        public Comparator<IndexViewEntry<?>> getComparator() {
+            return Ordering.allEqual()::compare;
+        }
+
+        @Override
+        SequencedMap<Component, List<ItemStack>> getGroups() {
             SequencedMap<Component, List<ItemStack>> groups = new LinkedHashMap<>();
             for (CreativeModeTab creativeModeTab : BuiltInRegistries.CREATIVE_MODE_TAB.stream().toList()) {
-                if (creativeModeTab.getType() == CreativeModeTab.Type.CATEGORY &&
-                        !CompletionistsIndex.CONFIG.get(ClientConfig.class).hiddenCreativeTabs.contains(creativeModeTab)) {
-                    List<ItemStack> items = getDisplayItems(creativeModeTab);
+                if (creativeModeTab.getType() == CreativeModeTab.Type.CATEGORY && !CompletionistsIndex.CONFIG.get(
+                        ClientConfig.class).hiddenCreativeTabs.contains(creativeModeTab)) {
+                    List<ItemStack> items = this.getDisplayItems(creativeModeTab);
                     if (!items.isEmpty()) {
                         groups.put(creativeModeTab.getDisplayName(), items);
                     }
                 }
             }
+
             return groups;
         }
     },
     MODS {
         @Override
-        SequencedMap<Component, List<ItemStack>> getGroups(List<ItemStack> items) {
-            return items.stream().collect(Collectors.groupingBy((ItemStack itemStack) -> {
-                String s = BuiltInRegistries.ITEM.getKey(itemStack.getItem()).getNamespace();
-                return Component.literal(getModDisplayName(s));
+        public Comparator<IndexViewEntry<?>> getComparator() {
+            return Comparator.comparing(IndexViewEntry::toComparableKey);
+        }
+
+        @Override
+        SequencedMap<Component, List<ItemStack>> getGroups() {
+            return this.getAllItems().stream().collect(Collectors.groupingBy((ItemStack itemStack) -> {
+                String modId = BuiltInRegistries.ITEM.getKey(itemStack.getItem()).getNamespace();
+                return Component.literal(ModContainer.getDisplayName(modId));
             }, LinkedHashMap::new, Collectors.toList()));
         }
     };
@@ -62,27 +72,21 @@ public enum IndexGroup implements SortProvider<IndexGroup> {
         return this.component;
     }
 
-    @Override
-    public Comparator<IndexViewEntry> getComparator() {
-        return switch (this) {
-            case CREATIVE -> Ordering.allEqual()::compare;
-            case MODS -> Comparator.comparing(IndexViewEntry::toComparableKey);
-        };
-    }
+    abstract SequencedMap<Component, List<ItemStack>> getGroups();
 
-    abstract SequencedMap<Component, List<ItemStack>> getGroups(List<ItemStack> items);
-
-    public final Map<Component, List<ItemStack>> getGroups() {
-        List<ItemStack> items = getDisplayItems(CreativeModeTabs.searchTab());
-        SequencedMap<Component, List<ItemStack>> groups = this.getGroups(items);
+    public final Map<Component, List<ItemStack>> getDisplayGroups() {
+        SequencedMap<Component, List<ItemStack>> groups = this.getGroups();
         if (groups.size() > 1) {
-            groups.putFirst(Component.translatable("gui.all"),
-                    items != null ? items : getDisplayItems(CreativeModeTabs.searchTab()));
+            groups.putFirst(Component.translatable("gui.all"), this.getAllItems());
         }
         return ImmutableMap.copyOf(groups);
     }
 
-    static List<ItemStack> getDisplayItems(CreativeModeTab creativeModeTab) {
+    List<ItemStack> getAllItems() {
+        return this.getDisplayItems(CreativeModeTabs.searchTab());
+    }
+
+    List<ItemStack> getDisplayItems(CreativeModeTab creativeModeTab) {
         return creativeModeTab.getDisplayItems()
                 .stream()
                 .map(ItemStack::getItem)
@@ -90,22 +94,5 @@ public enum IndexGroup implements SortProvider<IndexGroup> {
                 .filter(CompletionistsIndex.CONFIG.get(ClientConfig.class)::filterItems)
                 .map(ItemStack::new)
                 .toList();
-    }
-
-    static String getModDisplayName(String modId) {
-        return ModLoaderEnvironment.INSTANCE.getModContainer(modId)
-                .map(ModContainer::getDisplayName)
-                .orElse(createDisplayNameFromModId(modId));
-    }
-
-    static String createDisplayNameFromModId(String modId) {
-        StringJoiner stringJoiner = new StringJoiner(" ");
-        String[] parts = modId.split("_");
-        for (String part : parts) {
-            if (!part.isEmpty()) {
-                stringJoiner.add(Character.toUpperCase(part.charAt(0)) + part.substring(1).toLowerCase(Locale.ROOT));
-            }
-        }
-        return stringJoiner.toString();
     }
 }
