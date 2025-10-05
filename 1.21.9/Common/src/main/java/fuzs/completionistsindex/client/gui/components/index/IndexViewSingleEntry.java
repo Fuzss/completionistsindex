@@ -3,6 +3,7 @@ package fuzs.completionistsindex.client.gui.components.index;
 import com.google.common.collect.ImmutableList;
 import fuzs.completionistsindex.client.gui.screens.index.ItemsIndexViewScreen;
 import net.minecraft.ChatFormatting;
+import net.minecraft.client.input.MouseButtonEvent;
 import net.minecraft.client.resources.sounds.SimpleSoundInstance;
 import net.minecraft.core.registries.BuiltInRegistries;
 import net.minecraft.network.chat.CommonComponents;
@@ -70,7 +71,7 @@ public class IndexViewSingleEntry extends IndexViewEntry<ItemsIndexViewScreen> {
     }
 
     @Override
-    public boolean mouseClicked(int mouseX, int mouseY, int buttonId) {
+    public boolean mouseClicked(MouseButtonEvent mouseButtonEvent) {
         ServerPlayer serverPlayer = this.screen.getServerPlayer();
         if (serverPlayer != null) {
             ServerStatsCounter statsCounter = serverPlayer.getStats();

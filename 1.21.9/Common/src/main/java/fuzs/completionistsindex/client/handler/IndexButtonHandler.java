@@ -13,6 +13,7 @@ import net.minecraft.client.gui.components.ImageButton;
 import net.minecraft.client.gui.screens.PauseScreen;
 import net.minecraft.client.gui.screens.Screen;
 import net.minecraft.client.gui.screens.inventory.InventoryScreen;
+import net.minecraft.client.input.MouseButtonEvent;
 import org.jetbrains.annotations.Nullable;
 
 import java.util.List;
@@ -62,7 +63,7 @@ public class IndexButtonHandler {
         return null;
     }
 
-    public static void onMouseClicked$Post(Screen screen, double mouseX, double mouseY, int button) {
+    public static void onAfterMouseClick(Screen screen, MouseButtonEvent mouseButtonEvent) {
         if (collectorsLogButton != null && recipeBookButton != null) {
             collectorsLogButton.setX(recipeBookButton.getX() + recipeBookButton.getWidth() + 8);
             collectorsLogButton.setY(recipeBookButton.getY());

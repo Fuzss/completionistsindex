@@ -9,6 +9,7 @@ import net.minecraft.client.gui.GuiGraphics;
 import net.minecraft.client.gui.components.Button;
 import net.minecraft.client.gui.components.Tooltip;
 import net.minecraft.client.gui.screens.Screen;
+import net.minecraft.client.input.KeyEvent;
 import net.minecraft.client.renderer.RenderPipelines;
 import net.minecraft.client.server.IntegratedServer;
 import net.minecraft.network.chat.CommonComponents;
@@ -36,11 +37,9 @@ public class ItemsIndexViewScreen extends IndexViewScreen<StatsSorting> {
     @Nullable
     private ServerPlayer getPlayerFromServer() {
         IntegratedServer integratedServer = Minecraft.getInstance().getSingleplayerServer();
-
         if (integratedServer != null) {
             ServerPlayer serverPlayer = integratedServer.getPlayerList()
-                    .getPlayer(integratedServer.getSingleplayerProfile().getId());
-
+                    .getPlayer(integratedServer.getSingleplayerProfile().id());
             if (serverPlayer != null && serverPlayer.canUseGameMasterBlocks()) {
                 return serverPlayer;
             }
@@ -126,10 +125,10 @@ public class ItemsIndexViewScreen extends IndexViewScreen<StatsSorting> {
     }
 
     @Override
-    public boolean keyPressed(int keyCode, int scanCode, int modifiers) {
-        if (super.keyPressed(keyCode, scanCode, modifiers)) {
+    public boolean keyPressed(KeyEvent keyEvent) {
+        if (super.keyPressed(keyEvent)) {
             return true;
-        } else if (keyCode == InputConstants.KEY_BACKSPACE && this.shouldCloseOnEsc()) {
+        } else if (keyEvent.input() == InputConstants.KEY_BACKSPACE && this.shouldCloseOnEsc()) {
             this.minecraft.setScreen(this.lastScreen);
             return true;
         } else {

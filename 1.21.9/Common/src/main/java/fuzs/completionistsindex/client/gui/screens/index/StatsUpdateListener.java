@@ -1,6 +1,7 @@
 package fuzs.completionistsindex.client.gui.screens.index;
 
-import net.minecraft.client.gui.components.ObjectSelectionList;
+import net.minecraft.client.gui.GuiGraphics;
+import net.minecraft.client.gui.components.Renderable;
 import net.minecraft.client.gui.screens.Screen;
 import net.minecraft.client.gui.screens.achievement.StatsScreen;
 import net.minecraft.stats.StatsCounter;
@@ -16,34 +17,38 @@ public abstract class StatsUpdateListener extends StatsScreen {
         super(lastScreen, new StatsCounter());
     }
 
+    /**
+     * @see Screen#init()
+     */
     @Override
     protected void init() {
         // NO-OP
     }
 
+    /**
+     * @see Screen#render(GuiGraphics, int, int, float)
+     */
+    @Override
+    public void render(GuiGraphics guiGraphics, int mouseX, int mouseY, float partialTick) {
+        for (Renderable renderable : this.renderables) {
+            renderable.render(guiGraphics, mouseX, mouseY, partialTick);
+        }
+    }
+
+    /**
+     * @see Screen#renderMenuBackground(GuiGraphics)
+     */
+    @Override
+    protected void renderMenuBackground(GuiGraphics guiGraphics) {
+        this.renderMenuBackground(guiGraphics, 0, 0, this.width, this.height);
+    }
+
+    /**
+     * @see Screen#repositionElements()
+     */
     @Override
     protected void repositionElements() {
         this.rebuildWidgets();
-    }
-
-    @Override
-    public boolean isPauseScreen() {
-        return true;
-    }
-
-    @Override
-    public final void initLists() {
-        // NO-OP
-    }
-
-    @Override
-    public final void initButtons() {
-        // NO-OP
-    }
-
-    @Override
-    public final void setActiveList(@Nullable ObjectSelectionList<?> activeList) {
-        // NO-OP
     }
 
     @Override

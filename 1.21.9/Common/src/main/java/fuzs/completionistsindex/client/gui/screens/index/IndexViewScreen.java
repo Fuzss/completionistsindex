@@ -13,6 +13,9 @@ import net.minecraft.client.gui.components.Tooltip;
 import net.minecraft.client.gui.navigation.ScreenAxis;
 import net.minecraft.client.gui.navigation.ScreenRectangle;
 import net.minecraft.client.gui.screens.Screen;
+import net.minecraft.client.input.CharacterEvent;
+import net.minecraft.client.input.KeyEvent;
+import net.minecraft.client.input.MouseButtonEvent;
 import net.minecraft.client.renderer.RenderPipelines;
 import net.minecraft.network.chat.Component;
 import net.minecraft.resources.ResourceLocation;
@@ -34,6 +37,8 @@ public abstract class IndexViewScreen<T extends SortProvider<T>> extends StatsUp
     public static final RandomSource RANDOM = RandomSource.create();
 
     private final boolean fromInventory;
+    protected int imageWidth = 316;
+    protected int imageHeight = 198;
     protected int leftPos;
     protected int topPos;
     private Button turnPageBackwards;
@@ -68,16 +73,16 @@ public abstract class IndexViewScreen<T extends SortProvider<T>> extends StatsUp
 
     @Override
     protected void init() {
-        this.leftPos = (this.width - 316) / 2;
-        this.topPos = (this.height - 198) / 2;
+        this.leftPos = (this.width - this.imageWidth) / 2;
+        this.topPos = (this.height - this.imageHeight + 23) / 2;
         this.randomSeed = RANDOM.nextLong();
         this.magnifierIconPlacement = ScreenRectangle.of(ScreenAxis.HORIZONTAL,
-                this.leftPos + (316 / 2 - 146) / 2 + 18,
+                this.leftPos + (this.imageWidth / 2 - 146) / 2 + 18,
                 this.topPos - 23 + 5,
                 16,
                 16);
         this.searchBox = new EditBox(this.font,
-                this.leftPos + (316 / 2 - 146) / 2 + 43,
+                this.leftPos + (this.imageWidth / 2 - 146) / 2 + 43,
                 this.topPos - 23 + 6,
                 81,
                 this.font.lineHeight + 5,
@@ -86,11 +91,11 @@ public abstract class IndexViewScreen<T extends SortProvider<T>> extends StatsUp
         this.searchBox.setVisible(true);
         this.searchBox.setTextColor(-1);
         this.searchBox.setHint(SEARCH_HINT);
-        this.addRenderableWidget(new SpritelessImageButton(this.leftPos + 316 - 6 - 26 + 5,
+        this.addRenderableWidget(new SpritelessImageButton(this.leftPos + this.imageWidth - 6 - 26 + 5,
                 this.topPos - 23 + 5,
                 16,
                 16,
-                316 + 5,
+                this.imageWidth + 5,
                 45 + 5,
                 16 + 7,
                 INDEX_LOCATION,
@@ -99,7 +104,7 @@ public abstract class IndexViewScreen<T extends SortProvider<T>> extends StatsUp
                 (Button button) -> {
                     this.onClose();
                 }));
-        this.addRenderableWidget(new SpritelessImageButton(this.leftPos + 316 - 17 - 16,
+        this.addRenderableWidget(new SpritelessImageButton(this.leftPos + this.imageWidth - 17 - 16,
                 this.topPos + 11,
                 16,
                 13,
@@ -128,7 +133,8 @@ public abstract class IndexViewScreen<T extends SortProvider<T>> extends StatsUp
                     this.decrementPage();
                 }));
         this.turnPageBackwards.setTooltip(Tooltip.create(PREVIOUS_PAGE_COMPONENT));
-        this.turnPageForwards = this.addRenderableWidget(new SpritelessImageButton(this.leftPos + 316 - 27 - 18,
+        this.turnPageForwards = this.addRenderableWidget(new SpritelessImageButton(
+                this.leftPos + this.imageWidth - 27 - 18,
                 this.topPos + 173,
                 18,
                 10,
@@ -165,11 +171,12 @@ public abstract class IndexViewScreen<T extends SortProvider<T>> extends StatsUp
         } else {
             super.renderBackground(guiGraphics, mouseX, mouseY, partialTick);
         }
+
         guiGraphics.blit(RenderPipelines.GUI_TEXTURED,
                 INDEX_LOCATION,
-                this.leftPos + (316 / 2 - 146) / 2,
+                this.leftPos + (this.imageWidth / 2 - 146) / 2,
                 this.topPos - 23,
-                316,
+                this.imageWidth,
                 22,
                 146,
                 23,
@@ -177,9 +184,9 @@ public abstract class IndexViewScreen<T extends SortProvider<T>> extends StatsUp
                 256);
         guiGraphics.blit(RenderPipelines.GUI_TEXTURED,
                 INDEX_LOCATION,
-                this.leftPos + 316 - 6 - 26,
+                this.leftPos + this.imageWidth - 6 - 26,
                 this.topPos - 23,
-                316,
+                this.imageWidth,
                 45,
                 26,
                 23,
@@ -191,8 +198,8 @@ public abstract class IndexViewScreen<T extends SortProvider<T>> extends StatsUp
                 this.topPos,
                 0,
                 0,
-                316,
-                198,
+                this.imageWidth,
+                this.imageHeight,
                 512,
                 256);
         guiGraphics.drawString(this.font,
@@ -220,18 +227,18 @@ public abstract class IndexViewScreen<T extends SortProvider<T>> extends StatsUp
     }
 
     @Override
-    public boolean mouseClicked(double mouseX, double mouseY, int button) {
+    public boolean mouseClicked(MouseButtonEvent mouseButtonEvent, boolean doubleClick) {
         this.searchBox.setFocused(false);
-        if (super.mouseClicked(mouseX, mouseY, button)) {
+        if (super.mouseClicked(mouseButtonEvent, doubleClick)) {
             return true;
         } else if (this.pages != null && !this.pages.isEmpty() && this.pages.get(this.currentPage)
-                .mouseClicked((int) mouseX, (int) mouseY, button)) {
+                .mouseClicked(mouseButtonEvent)) {
             return true;
         } else {
             boolean mouseClickedOnMagnifier =
-                    this.magnifierIconPlacement != null && this.magnifierIconPlacement.containsPoint(Mth.floor(mouseX),
-                            Mth.floor(mouseY));
-            if (mouseClickedOnMagnifier || this.searchBox.mouseClicked(mouseX, mouseY, button)) {
+                    this.magnifierIconPlacement != null && this.magnifierIconPlacement.containsPoint(Mth.floor(
+                            mouseButtonEvent.x()), Mth.floor(mouseButtonEvent.y()));
+            if (mouseClickedOnMagnifier || this.searchBox.mouseClicked(mouseButtonEvent, doubleClick)) {
                 this.searchBox.setFocused(true);
                 return true;
             } else {
@@ -275,35 +282,35 @@ public abstract class IndexViewScreen<T extends SortProvider<T>> extends StatsUp
     }
 
     @Override
-    public boolean keyPressed(int keyCode, int scanCode, int modifiers) {
+    public boolean keyPressed(KeyEvent keyEvent) {
         this.ignoreTextInput = false;
-        if (this.searchBox.keyPressed(keyCode, scanCode, modifiers)) {
+        if (this.searchBox.keyPressed(keyEvent)) {
             this.checkSearchStringUpdate();
             return true;
-        } else if (this.minecraft.options.keyChat.matches(keyCode, scanCode) && !this.searchBox.isFocused()) {
+        } else if (this.minecraft.options.keyChat.matches(keyEvent) && !this.searchBox.isFocused()) {
             this.ignoreTextInput = true;
             this.searchBox.setFocused(true);
             return true;
         } else {
-            return super.keyPressed(keyCode, scanCode, modifiers);
+            return super.keyPressed(keyEvent);
         }
     }
 
     @Override
-    public boolean keyReleased(int keyCode, int scanCode, int modifiers) {
+    public boolean keyReleased(KeyEvent keyEvent) {
         this.ignoreTextInput = false;
-        return super.keyReleased(keyCode, scanCode, modifiers);
+        return super.keyReleased(keyEvent);
     }
 
     @Override
-    public boolean charTyped(char codePoint, int modifiers) {
+    public boolean charTyped(CharacterEvent characterEvent) {
         if (this.ignoreTextInput) {
             return false;
-        } else if (this.searchBox.charTyped(codePoint, modifiers)) {
+        } else if (this.searchBox.charTyped(characterEvent)) {
             this.checkSearchStringUpdate();
             return true;
         } else {
-            return super.charTyped(codePoint, modifiers);
+            return super.charTyped(characterEvent);
         }
     }
 
@@ -383,14 +390,17 @@ public abstract class IndexViewScreen<T extends SortProvider<T>> extends StatsUp
             }
         }
 
-        public boolean mouseClicked(int mouseX, int mouseY, int buttonId) {
+        public boolean mouseClicked(MouseButtonEvent mouseButtonEvent) {
             for (int i = 0; i < this.entries.length; i++) {
                 IndexViewEntry<?> indexViewEntry = this.entries[i];
                 if (indexViewEntry != null) {
                     int posX = i >= 7 ? this.screen.leftPos + 167 : this.screen.leftPos + 16;
                     int posY = this.screen.topPos + 26 + i % 7 * 21;
-                    if (indexViewEntry.isMouseOver(posX, posY, mouseX, mouseY)) {
-                        return indexViewEntry.mouseClicked(mouseX, mouseY, buttonId);
+                    if (indexViewEntry.isMouseOver(posX,
+                            posY,
+                            Mth.floor(mouseButtonEvent.x()),
+                            Mth.floor(mouseButtonEvent.y()))) {
+                        return indexViewEntry.mouseClicked(mouseButtonEvent);
                     }
                 } else {
                     return false;

@@ -9,6 +9,7 @@ import net.minecraft.ChatFormatting;
 import net.minecraft.Util;
 import net.minecraft.client.gui.Font;
 import net.minecraft.client.gui.GuiGraphics;
+import net.minecraft.client.input.MouseButtonEvent;
 import net.minecraft.client.renderer.RenderPipelines;
 import net.minecraft.client.resources.sounds.SimpleSoundInstance;
 import net.minecraft.network.chat.Component;
@@ -121,7 +122,7 @@ public class IndexViewGroupEntry extends IndexViewEntry<ModsIndexViewScreen> {
     }
 
     @Override
-    public boolean mouseClicked(int mouseX, int mouseY, int buttonId) {
+    public boolean mouseClicked(MouseButtonEvent mouseButtonEvent) {
         this.screen.minecraft.setScreen(new ItemsIndexViewScreen(this.screen,
                 this.screen.isFromInventory(),
                 this.items));

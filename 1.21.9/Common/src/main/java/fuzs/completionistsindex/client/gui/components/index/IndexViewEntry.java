@@ -6,6 +6,7 @@ import net.minecraft.ChatFormatting;
 import net.minecraft.Util;
 import net.minecraft.client.gui.Font;
 import net.minecraft.client.gui.GuiGraphics;
+import net.minecraft.client.input.MouseButtonEvent;
 import net.minecraft.client.renderer.RenderPipelines;
 import net.minecraft.network.chat.Component;
 import net.minecraft.network.chat.Style;
@@ -100,7 +101,7 @@ public abstract class IndexViewEntry<S extends IndexViewScreen<?>> {
         return mouseX > minX && mouseX <= maxX && mouseY > minY && mouseY <= maxY;
     }
 
-    public abstract boolean mouseClicked(int mouseX, int mouseY, int buttonId);
+    public abstract boolean mouseClicked(MouseButtonEvent mouseButtonEvent);
 
     protected void renderBackground(GuiGraphics guiGraphics, int mouseX, int mouseY, float partialTick, int posX, int posY) {
         guiGraphics.blit(RenderPipelines.GUI_TEXTURED,

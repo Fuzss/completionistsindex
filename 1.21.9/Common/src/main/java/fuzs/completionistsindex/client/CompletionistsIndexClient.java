@@ -24,7 +24,7 @@ public class CompletionistsIndexClient implements ClientModConstructor {
     }
 
     private static void registerEventHandlers() {
-        ScreenMouseEvents.afterMouseClick(InventoryScreen.class).register(IndexButtonHandler::onMouseClicked$Post);
+        ScreenMouseEvents.afterMouseClick(InventoryScreen.class).register(IndexButtonHandler::onAfterMouseClick);
         ScreenEvents.afterInit(InventoryScreen.class).register(IndexButtonHandler::onAfterInventoryScreenInit);
         ScreenEvents.afterInit(PauseScreen.class).register(IndexButtonHandler::onAfterPauseScreenInit);
     }
